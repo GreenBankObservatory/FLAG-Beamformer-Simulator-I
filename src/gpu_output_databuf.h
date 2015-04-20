@@ -4,18 +4,14 @@
 #include <stdint.h>
 #include "hashpipe_databuf.h"
 #include "config.h"
-#define CACHE_ALIGNMENT 128
+// #define CACHE_ALIGNMENT 128
+#define NUM_ANTENNAS 40
 
 #define NUM_BLOCKS 2
 
 typedef struct gpu_output_databuf_block {
-  int counter;
-  int one;
-  int two;
-  int three;
-  int four;
-  int five;
-  int six[6];
+  int mcnt;
+  int data[NUM_ANTENNAS];
 } gpu_output_databuf_block_t;
 
 typedef struct gpu_output_databuf {
