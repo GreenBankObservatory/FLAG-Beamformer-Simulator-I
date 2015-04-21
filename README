@@ -19,3 +19,7 @@ From the root of FLAG-Beamformer-Simulator-I:
     $ ../configure --prefix=$INSTALLDIR --with-hashpipe=$INSTALLDIR
     $ make
     $ make install
+
+To run:
+
+$ taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=$YOURHOST -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread -c 2 fake_gpu_test_thread

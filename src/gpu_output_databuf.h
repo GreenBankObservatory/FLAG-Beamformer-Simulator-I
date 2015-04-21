@@ -30,6 +30,7 @@
 #define NUM_ANTENNAS 40
 
 #define NUM_BLOCKS 2
+#define SCANLEN 5
 
 typedef struct gpu_output_databuf_block {
   int mcnt;

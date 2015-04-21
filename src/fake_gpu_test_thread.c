@@ -76,10 +76,10 @@ static void *run(hashpipe_thread_args_t * args)
 		mcnt = db->block[block_idx].mcnt;
 		fprintf(stderr, "\nReading from block %d on mcnt %d\n", block_idx, mcnt);
 
-		int i;
-		for (i = 0; i < NUM_ANTENNAS; i++) {
-			fprintf(stderr, "\tdb->block[%d].data[%d]: %d\n", block_idx, i, db->block[block_idx].data[i]);
-		}
+// 		int i;
+// 		for (i = 0; i < NUM_ANTENNAS; i++) {
+// 			fprintf(stderr, "\tdb->block[%d].data[%d]: %d\n", block_idx, i, db->block[block_idx].data[i]);
+// 		}
 
 		// Mark block as full
         gpu_output_databuf_set_free(db, block_idx);
