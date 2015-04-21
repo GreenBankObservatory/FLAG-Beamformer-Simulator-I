@@ -24,13 +24,18 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
+# Sets earliest accepted version of autoconf
 AC_PREREQ([2.63])
 AC_INIT([FULL-PACKAGE-NAME], [VERSION], [BUG-REPORT-ADDRESS])
+# Sets a directory for a lot of the "ugly" files to go
 AC_CONFIG_AUX_DIR(config)
-AM_INIT_AUTOMAKE([foreign])
+
 LT_INIT
 AM_SILENT_RULES([yes])
-# AC_CONFIG_SRCDIR([hello_world_databuf.h])
+# Safety check to make sure that the source dir is configured correctly
+AC_CONFIG_SRCDIR([src/fake_gpu_thread.c])
+
+AM_INIT_AUTOMAKE([foreign])
 
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
@@ -48,12 +53,14 @@ AC_PROG_CC
 # Check for HASHPIPE and xGPU
 AX_CHECK_HASHPIPE
 #AX_CHECK_XGPUINFO
+# TODO: Create a check for cfitsio?
 
 # Checks for libraries.
 AC_CHECK_LIB([pthread], [pthread_create])
 AC_CHECK_LIB([rt], [clock_gettime])
 AC_CHECK_LIB([z], [crc32])
 
+# TODO: Find out which headers we need to check for
 # Checks for header files.
 AC_CHECK_HEADERS([netdb.h stdint.h stdlib.h string.h sys/socket.h sys/time.h unistd.h zlib.h])
 
@@ -71,5 +78,6 @@ AC_TYPE_UINT8_T
 AC_FUNC_MALLOC
 AC_CHECK_FUNCS([clock_gettime memset socket crc32])
 
-AC_CONFIG_FILES([Makefile src/Makefile])
-AC_OUTPUT
+
+# AC_CONFIG_FILES
+AC_OUTPUT(Makefile src/Makefile)

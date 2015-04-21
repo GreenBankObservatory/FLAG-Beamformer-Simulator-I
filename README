@@ -1,0 +1,21 @@
+This is Simulator I, a component of the end-to-end simulation that is currently in development for the Green Bank/BYU/WVU Beamformer project.
+It is a plugin for the hashpipe parallel processing pipeline.
+More information on hashpipe can be found here: https://casper.berkeley.edu/wiki/PAPER_Correlator_Manifest#HASHPIPE
+
+It is still in development, but it should build in its current state.
+
+When you build this plugin, make sure that you are installing your plugin to the hashpipe installation directory.
+For example, I installed hashpipe to "/home/sandboxes/tchamber/paper/commoninstall" using "./configure --prefix=/home/sandboxes/tchamber/paper/commoninstall".
+So, when I install the fake_gpu plugin, I will also install it to /home/sandboxes/tchamber/paper/commoninstall.
+I will use $INSTALLDIR to refer to the hashpipe installation directory.
+
+To build:
+
+From the root of FLAG-Beamformer-Simulator-I:
+
+    $ mkdir build config
+    $ autoconf -is
+    $ cd build
+    $ ../configure --prefix=$INSTALLDIR --with-hashpipe=$INSTALLDIR
+    $ make
+    $ make install
