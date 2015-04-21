@@ -20,6 +20,6 @@
 # P. O. Box 2
 # Green Bank, WV 24944-0002 USA
 
-ACLOCAL_AMFLAGS = -I m4 -I config 
+ACLOCAL_AMFLAGS = -I m4 -I config
 SUBDIRS = src
 # EXTRA_DIST = autogen.sh

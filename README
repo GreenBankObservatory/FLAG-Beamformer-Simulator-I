@@ -14,7 +14,7 @@ To build:
 From the root of FLAG-Beamformer-Simulator-I:
 
     $ mkdir build config
-    $ autoconf -is
+    $ autoreconf -is
     $ cd build
     $ ../configure --prefix=$INSTALLDIR --with-hashpipe=$INSTALLDIR
     $ make
