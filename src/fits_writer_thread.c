@@ -32,8 +32,104 @@
 #include <sys/types.h>
 #include <errno.h>
 
+#include "fitsio.h"
 #include "hashpipe.h"
 #include "gpu_output_databuf.h"
+
+fitsfile *createFitsFile(char *filename, int scanDuration, int scanNum, int *st) {
+    printf("createFitsFile\n");
+    fitsfile *fptr;         
+    int status = 0;
+
+    char keyname[10];
+    char comment[64];
+
+    fits_create_file(&fptr, filename, &status);
+    if (status)          /* print any error messages */
+    {
+      fits_report_error(stderr, status);
+      return(fptr);
+    }   
+
+    fits_open_file(&fptr, filename, READWRITE, &status);
+    if (status)          /* print any error messages */
+      fits_report_error(stderr, status);
+
+    // Initialize primary header
+    fits_create_img(fptr, 8, 0, 0, &status);
+    if (status)          /* print any error messages */
+      fits_report_error(stderr, status);
+
+    strcpy(keyname, "SCANNUM");
+    //strcpy(value, "myvalue");
+    strcpy(comment, "scan number");
+
+    fits_update_key_lng(fptr,
+                        keyname,
+                        scanNum,
+                        comment,
+                        &status);
+    if (status)          /* print any error messages */
+      fits_report_error(stderr, status);
+
+
+    strcpy(keyname, "SCANDUR");
+    strcpy(comment, "Duration of scan (seconds)");
+    fits_update_key_lng(fptr,
+                        keyname,
+                        scanDuration,
+                        comment,
+                        &status);
+    if (status)          /* print any error messages */
+      fits_report_error(stderr, status);
+
+    // write data table
+    //int dataSize = 40;
+    char extname[] = "DATA";
+    int numberColumns = 1;
+    char *ttypeState[] =
+        {(char *)"DATA"};
+    char *tformState[] =
+        {(char *)"40I"};
+    char *tunitState[] =
+        {(char *)"d"};
+    
+    fits_create_tbl(fptr,
+                    BINARY_TBL,
+                    0,
+                    numberColumns,
+                    ttypeState,
+                    tformState,
+                    tunitState,
+                    extname,
+                    &status);
+    if (status)          /* print any error messages */
+      fits_report_error(stderr, status);
+    
+    *st = status;  
+    return(fptr);
+}
+
+
+int fitsWriteRow(fitsfile *fptr, int *data, int rowNum) {
+    int status = 0;
+    long dataSize = 40;
+    fprintf(stderr, "fitsWriteRow: row = %d\n", rowNum);
+    /*
+    // debug
+    int testData[40];
+    // create fake data
+    int di = 0;
+    for (di=0; di<dataSize; di++) 
+        testData[di] = (di + (dataSize*rowNum));
+    */
+    fprintf(stderr, "fits_write_col_int\n");
+    fits_write_col_int(fptr, 1, rowNum + 1, 1, dataSize, data, &status);
+    if (status)         
+      fits_report_error(stderr, status);
+    return(status);
+
+}
 
 static void *run(hashpipe_thread_args_t * args)
 {
@@ -49,6 +145,13 @@ static void *run(hashpipe_thread_args_t * args)
     int scanning = 0;
     int scan_elapsed_time = 0;
     int scan_length = 0;
+
+    // FITS file shit
+    int status = 0;
+    int rowNum = 0;
+    int scan_num = 0;
+    fitsfile *fptr = NULL;         
+    char filename[256];
 
     hashpipe_status_lock_safe(&st);
     // Force SCANST to 0 to make sure we wait for user input
@@ -90,9 +193,19 @@ static void *run(hashpipe_thread_args_t * args)
             hashpipe_status_lock_safe(&st);
             // ... check to see if we should start a scan
             hgeti4(st.buf, "SCANST", &scanning);
+            // ...find out how long we should scan
+            hgeti4(st.buf, "SCANLEN", &scan_length);
 
             if (scanning)
             {
+                // open FITS file
+                sprintf(filename, "/tmp/simOne.Scan%d.v1.fits", scan_num);
+                fptr = createFitsFile(filename, scan_length, scan_num, &status);
+                if (status)
+                   fprintf(stderr, "Error in createFitsFile\n");
+                rowNum = 0;     
+                scan_num++;
+
                 // Now that we are in a scan, set the start prompt back to 0
                 // Doing this here insures that we don't have
                 //   redundant writes to status shared mem
@@ -113,12 +226,13 @@ static void *run(hashpipe_thread_args_t * args)
         if (scanning)
         {
             fprintf(stderr, "Scanning. Elapsed time: %d\n", scan_elapsed_time);
+            /*
             hashpipe_status_lock_safe(&st);
 
             // ...find out how long we should scan
             hgeti4(st.buf, "SCANLEN", &scan_length);
             hashpipe_status_unlock_safe(&st);
-
+            */
             // Check to see if we have a valid scan length from the user
             if (scan_length <= 0)
             {
@@ -131,22 +245,33 @@ static void *run(hashpipe_thread_args_t * args)
                 continue;
             }
 
+            // write FITS data!
+            fprintf(stderr, "writing row of data\n");
+            fitsWriteRow(fptr,  (int*)db->block[block_idx].data, rowNum++); 
+
             // If we have scanned for the designated amount of time...
             if (scan_elapsed_time >= scan_length)
             {
                 // ...write to disk
                 fprintf(stderr, "This is where we would be writing FITS files to disk\n");
+                // write last data row, close FITS file
+                fits_close_file(fptr,&status);
+                if (status)          /* print any error messages */
+                  fits_report_error(stderr, status);
+
                 scan_elapsed_time = 0;
                 scanning = 0;
                 //      int i;
                 //      for (i = 0; i < NUM_ANTENNAS; i++) {
                 //          fprintf(stderr, "\tdb->block[%d].data[%d]: %d\n", block_idx, i, db->block[block_idx].data[i]);
                 //      }
+            } else {
             }
+
             scan_elapsed_time++;
         }
 
-		// Mark block as full
+		// Mark block as free
         gpu_output_databuf_set_free(db, block_idx);
 
         // Setup for next block
