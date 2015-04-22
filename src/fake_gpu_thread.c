@@ -39,6 +39,9 @@
 #include "gpu_output_databuf.h"
 #include "fitsio.h"
 
+#define ELAPSED_NS(start,stop) \
+  (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
+
 static void *run(hashpipe_thread_args_t * args)
 {
     gpu_output_databuf_t *db = (gpu_output_databuf_t *)args->obuf;
@@ -49,19 +52,7 @@ static void *run(hashpipe_thread_args_t * args)
     int block_idx = 0;
     int mcnt = 0;
 
-    int scanning = 0;
-    int scan_elapsed_time = 0;
-    int scan_length = 0;
-
     srand(time(NULL));
-    
-
-    hashpipe_status_lock_safe(&st);
-    // Force SCANST to 0 to make sure we wait for user input
-    hputi4(st.buf, "SCANST", 0);
-    // Set default SCANLEN
-    hputi4(st.buf, "SCANLEN", 5);
-    hashpipe_status_unlock_safe(&st);
 
     while (run_threads())
     {
@@ -69,25 +60,7 @@ static void *run(hashpipe_thread_args_t * args)
         hputs(st.buf, status_key, "waiting");
         hashpipe_status_unlock_safe(&st);
 
-
-        // Wait for the user to start a scan
-        // This effectively blocks the program until a scan starts
-        while (!scanning)
-        {
-            hashpipe_status_lock_safe(&st);
-            // Set scanning to whatever the value of SCANST is
-            // That is, if the user requests a scan, we start one
-            hgeti4(st.buf, "SCANST", &scanning);
-            if (scanning)
-            {
-                // Now that we are in a scan, set the start prompt back to 0
-                hputi4(st.buf, "SCANST", 0);
-            }
-            hashpipe_status_unlock_safe(&st);
-            fprintf(stderr, "SCANST = %d\n", scanning);
-            sleep(1);
-        }
-
+        // Wait for the current block to be set to free
         while ((rv=gpu_output_databuf_wait_free(db, block_idx)) != HASHPIPE_OK)
         {
             if (rv==HASHPIPE_TIMEOUT)
@@ -108,38 +81,21 @@ static void *run(hashpipe_thread_args_t * args)
         sleep(1);
 
         hashpipe_status_lock_safe(&st);
+        // Set status to sending
         hputs(st.buf, status_key, "sending");
- 
-        fprintf(stderr, "Scanning. Elapsed time: %d\n", scan_elapsed_time);
-
-        hgeti4(st.buf, "SCANLEN", &scan_length);
         hashpipe_status_unlock_safe(&st);
-        
-        if (scan_length <= 0)
-        {
-            hashpipe_error(__FUNCTION__, "SCANLEN has either not been set or has been set to an invalid value");
-            continue;
-        }
 
+        
         db->block[block_idx].mcnt = mcnt++;
 
         fprintf(stderr, "\nWriting to block %d on mcnt %d\n", block_idx, mcnt);
-    
+
+        // Write data to shared memory
         int i;
         for (i = 0; i < NUM_ANTENNAS; i++) {
             db->block[block_idx].data[i] = i + (block_idx * NUM_ANTENNAS);
 //             db->block[block_idx].data[i] = rand(); 
         }
-
-        // Once we have scanned for the designated amount of time...
-        if (scan_elapsed_time >= scan_length)
-        {
-            // Write to disk
-            fprintf(stderr, "This is where we would be writing FITS files to disk\n");
-            scan_elapsed_time = 0;
-            scanning = 0;
-        }
-        scan_elapsed_time++;
 
         // Mark block as full
         gpu_output_databuf_set_filled(db, block_idx);
@@ -152,7 +108,7 @@ static void *run(hashpipe_thread_args_t * args)
         pthread_testcancel();
     }
     
-    return NULL;
+    return THREAD_OK;
 }
 
 static hashpipe_thread_desc_t fake_gpu_thread = {

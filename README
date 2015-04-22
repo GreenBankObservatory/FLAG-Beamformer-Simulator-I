@@ -22,4 +22,10 @@ From the root of FLAG-Beamformer-Simulator-I:
 
 To run:
 
-$ taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=$YOURHOST -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread -c 2 fake_gpu_test_thread
+$ taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread -c 2 fits_writer_thread
+
+To start scan:
+$ hashpipe_check_status -k SCANST -i 1
+
+To change scan length:
+$ hashpipe_check_status -k SCANLEN -i 5
