@@ -31,7 +31,7 @@ gpu_output_databuf = gpu_output_databuf.h \
 		     gpu_output_databuf.c
 
 fake_gpu = fake_gpu_thread.c \
-	   fake_gpu_test_thread.c
+	   fits_writer_thread.c
 
 # This is the paper_gpu plugin itself
 lib_LTLIBRARIES		= fake_gpu.la
