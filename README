@@ -33,3 +33,4 @@ $ hashpipe_check_status -k SCANLEN -i 5
 Notes:
 
 Be sure to write your fits files to a local disk
+This program will not overwrite FITS files. Instead it will segfault, so be aware of that limitation
