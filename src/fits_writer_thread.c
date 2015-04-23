@@ -44,8 +44,8 @@
   (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
 
 // Forward declarations for the sake of prettiness
-int fitsWriteRow(fitsfile *fptr, int *data, int rowNum);
-fitsfile *createFitsFile(char *filename, int scanDuration, int scanNum, int *st);
+int fits_write_row(fitsfile *fptr, int *data, int row_num);
+fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int *st);
 
 static void *run(hashpipe_thread_args_t * args)
 {
@@ -68,7 +68,7 @@ static void *run(hashpipe_thread_args_t * args)
 
     // FITS file shit
     int status = 0;
-    int rowNum = 0;
+    int row_num = 0;
     int scan_num = 0;
     fitsfile *fptr = NULL;         
     char filename[256];
@@ -148,40 +148,37 @@ static void *run(hashpipe_thread_args_t * args)
             // Create/open FITS file
             // TODO: Portable filenames
             sprintf(filename, "/tmp/tchamber/sim1fits/v1/scan%d.fits", scan_num);
-            fptr = createFitsFile(filename, requested_scan_length, scan_num, &status);
+            fptr = create_fits_file(filename, requested_scan_length, scan_num, &status);
             if (status)
             {
                 hashpipe_error(__FUNCTION__, "Error creating fits file");
                 pthread_exit(NULL);
             }
             // Row number will return to 0 on each new scan
-            rowNum = 0;
+            row_num = 0;
             scan_num++;
 
             // Get the current time
             clock_gettime(CLOCK_MONOTONIC, &start);
-            fprintf(stderr, "Starting scan at time: %ld\n", start.tv_sec);
+//             fprintf(stderr, "Starting scan at time: %ld\n", start.tv_sec);
+            fprintf(stderr, "Starting scan\n");
         }
 
         // Scan status is now "scanning"
         // So, read from shared memory
 		mcnt = db->block[block_idx].mcnt;
-		fprintf(stderr, "\nReading from block %d on mcnt %d\n", block_idx, mcnt);
+// 		fprintf(stderr, "\nReading from block %d on mcnt %d\n", block_idx, mcnt);
 
         if (strcmp(scan_status, "scanning") == 0)
         {
             fprintf(stderr, "Scanning. Elapsed time: %ld\n", scan_elapsed_time);
             
             // write FITS data!
-            fprintf(stderr, "writing row of data\n");
-            fitsWriteRow(fptr,  (int*)db->block[block_idx].data, rowNum++);
+//             fprintf(stderr, "writing row of data\n");
+            fits_write_row(fptr,  (int*)db->block[block_idx].data, row_num++);
 
             clock_gettime(CLOCK_MONOTONIC, &stop);
             scan_elapsed_time = ELAPSED_NS(start, stop);
-//             fprintf(stderr, "Elapsed time in ns: %" PRIu64 "\n", scan_elapsed_time);
-//             fprintf(stderr, "Requested scan time in s: %d\n", requested_scan_length);
-
-            
 
             // If we have scanned for the designated amount of time...
             if (scan_elapsed_time >= ((uint64_t) requested_scan_length) * 1000 * 1000 * 1000)
@@ -232,8 +229,8 @@ static __attribute__((constructor)) void ctor()
   register_hashpipe_thread(&fits_writer_thread);
 }
 
-fitsfile *createFitsFile(char *filename, int scanDuration, int scanNum, int *st) {
-    printf("createFitsFile\n");
+fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int *st) {
+    printf("create_fits_file\n");
     fitsfile *fptr;
     int status = 0;
 
@@ -262,7 +259,7 @@ fitsfile *createFitsFile(char *filename, int scanDuration, int scanNum, int *st)
 
     fits_update_key_lng(fptr,
                         keyname,
-                        scanNum,
+                        scan_num,
                         comment,
                         &status);
     if (status)          /* print any error messages */
@@ -273,31 +270,31 @@ fitsfile *createFitsFile(char *filename, int scanDuration, int scanNum, int *st)
     strcpy(comment, "Duration of scan (seconds)");
     fits_update_key_lng(fptr,
                         keyname,
-                        scanDuration,
+                        scan_duration,
                         comment,
                         &status);
     if (status)          /* print any error messages */
       fits_report_error(stderr, status);
 
     // write data table
-    //int dataSize = 40;
-    char extname[] = "DATA";
-    int numberColumns = 1;
-    char *ttypeState[] =
+    //int data_size = 40;
+    char ext_name[] = "DATA";
+    int number_columns = 1;
+    char *ttype_state[] =
         {(char *)"DATA"};
-    char *tformState[] =
+    char *tform_state[] =
         {(char *)"40I"};
-    char *tunitState[] =
+    char *tunit_state[] =
         {(char *)"d"};
 
     fits_create_tbl(fptr,
                     BINARY_TBL,
                     0,
-                    numberColumns,
-                    ttypeState,
-                    tformState,
-                    tunitState,
-                    extname,
+                    number_columns,
+                    ttype_state,
+                    tform_state,
+                    tunit_state,
+                    ext_name,
                     &status);
     if (status)          /* print any error messages */
       fits_report_error(stderr, status);
@@ -307,20 +304,20 @@ fitsfile *createFitsFile(char *filename, int scanDuration, int scanNum, int *st)
 }
 
 
-int fitsWriteRow(fitsfile *fptr, int *data, int rowNum) {
+int fits_write_row(fitsfile *fptr, int *data, int row_num) {
     int status = 0;
-    long dataSize = 40;
-    fprintf(stderr, "fitsWriteRow: row = %d\n", rowNum);
+    long data_size = 40;
+//     fprintf(stderr, "fits_write_row: row = %d\n", row_num);
     /*
     // debug
     int testData[40];
     // create fake data
     int di = 0;
-    for (di=0; di<dataSize; di++)
-        testData[di] = (di + (dataSize*rowNum));
+    for (di=0; di<data_size; di++)
+        testData[di] = (di + (data_size*row_num));
     */
-    fprintf(stderr, "fits_write_col_int\n");
-    fits_write_col_int(fptr, 1, rowNum + 1, 1, dataSize, data, &status);
+//     fprintf(stderr, "fits_write_col_int\n");
+    fits_write_col_int(fptr, 1, row_num + 1, 1, data_size, data, &status);
     if (status)
       fits_report_error(stderr, status);
     return(status);
