@@ -29,3 +29,7 @@ $ hashpipe_check_status -k SCANST -i 1
 
 To change scan length:
 $ hashpipe_check_status -k SCANLEN -i 5
+
+Notes:
+
+Be sure to write your fits files to a local disk
