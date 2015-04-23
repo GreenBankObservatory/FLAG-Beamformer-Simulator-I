@@ -31,12 +31,17 @@
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <errno.h>
+// For printing uint64_t
+#include <inttypes.h>
 
 #include "fitsio.h"
 #include "hashpipe.h"
 #include "gpu_output_databuf.h"
 
 #define SCAN_STATUS_LENGTH 10
+
+#define ELAPSED_NS(start,stop) \
+  (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
 
 // Forward declarations for the sake of prettiness
 int fitsWriteRow(fitsfile *fptr, int *data, int rowNum);
@@ -52,10 +57,12 @@ static void *run(hashpipe_thread_args_t * args)
 	int block_idx = 0;
 	int mcnt = 0;
 
-    int scan_elapsed_time = 0;
+    struct timespec start, stop;
+    // Elapsed time in ns
+    uint64_t scan_elapsed_time = 0;
     // Requested scan length in seconds
     int requested_scan_length = 0;
-    // TODO: This is replacing scanning
+    
     // The current scanning status
     char scan_status[SCAN_STATUS_LENGTH];
 
@@ -75,8 +82,6 @@ static void *run(hashpipe_thread_args_t * args)
     hputs(st.buf, "SCANSTAT", "off");
     hashpipe_status_unlock_safe(&st);
 
-    
-    fprintf(stderr, "About to run thread\n");
 	while (run_threads())
 	{
 		hashpipe_status_lock_safe(&st);
@@ -126,6 +131,8 @@ static void *run(hashpipe_thread_args_t * args)
             hgeti4(st.buf, "SCANLEN", &requested_scan_length);
             hashpipe_status_unlock_safe(&st);
 
+
+
             // Check to see if the scan length is correct...
             if (requested_scan_length <= 0)
             {
@@ -140,7 +147,7 @@ static void *run(hashpipe_thread_args_t * args)
 
             // Create/open FITS file
             // TODO: Portable filenames
-            sprintf(filename, "/home/scratch/tchamber/sim1fits/v1/scan%d.fits", scan_num);
+            sprintf(filename, "/tmp/tchamber/sim1fits/v1/scan%d.fits", scan_num);
             fptr = createFitsFile(filename, requested_scan_length, scan_num, &status);
             if (status)
             {
@@ -152,6 +159,8 @@ static void *run(hashpipe_thread_args_t * args)
             scan_num++;
 
             // Get the current time
+            clock_gettime(CLOCK_MONOTONIC, &start);
+            fprintf(stderr, "Starting scan at time: %ld\n", start.tv_sec);
         }
 
         // Scan status is now "scanning"
@@ -161,19 +170,26 @@ static void *run(hashpipe_thread_args_t * args)
 
         if (strcmp(scan_status, "scanning") == 0)
         {
-            fprintf(stderr, "Scanning. Elapsed time: %d\n", scan_elapsed_time);
+            fprintf(stderr, "Scanning. Elapsed time: %ld\n", scan_elapsed_time);
             
             // write FITS data!
             fprintf(stderr, "writing row of data\n");
             fitsWriteRow(fptr,  (int*)db->block[block_idx].data, rowNum++);
 
+            clock_gettime(CLOCK_MONOTONIC, &stop);
+            scan_elapsed_time = ELAPSED_NS(start, stop);
+//             fprintf(stderr, "Elapsed time in ns: %" PRIu64 "\n", scan_elapsed_time);
+//             fprintf(stderr, "Requested scan time in s: %d\n", requested_scan_length);
+
+            
+
             // If we have scanned for the designated amount of time...
-            if (scan_elapsed_time >= requested_scan_length)
+            if (scan_elapsed_time >= ((uint64_t) requested_scan_length) * 1000 * 1000 * 1000)
             {
                 // ...write to disk
-                fprintf(stderr, "This is where we would be writing FITS files to disk\n");
+                fprintf(stderr, "This is where we write a FITS file to disk\n");
                 // write last data row, close FITS file
-                fits_close_file(fptr,&status);
+                fits_close_file(fptr, &status);
                 if (status)          /* print any error messages */
                   fits_report_error(stderr, status);
 
@@ -181,13 +197,11 @@ static void *run(hashpipe_thread_args_t * args)
                 hputs(st.buf, "SCANSTAT", "off");
 
                 //debug
-                //      int i;
-                //      for (i = 0; i < NUM_ANTENNAS; i++) {
-                //          fprintf(stderr, "\tdb->block[%d].data[%d]: %d\n", block_idx, i, db->block[block_idx].data[i]);
-                //      }
+//                 int i;
+//                 for (i = 0; i < NUM_ANTENNAS; i++) {
+//                     fprintf(stderr, "\tdb->block[%d].data[%d]: %d\n", block_idx, i, db->block[block_idx].data[i]);
+//                 }
             }
-
-            scan_elapsed_time++;
         }
 
 		// Mark block as free

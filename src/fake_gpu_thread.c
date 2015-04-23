@@ -87,7 +87,7 @@ static void *run(hashpipe_thread_args_t * args)
 
         db->block[block_idx].mcnt = mcnt++;
 
-        fprintf(stderr, "\nWriting to block %d on mcnt %d\n", block_idx, mcnt);
+//         fprintf(stderr, "\nWriting to block %d on mcnt %d\n", block_idx, mcnt);
 
         // Write data to shared memory
         int i;
