@@ -45,6 +45,7 @@ hashpipe_databuf_t *gpu_output_databuf_create(int instance_id, int databuf_id)
     /* Calc databuf sizes */
     size_t header_size = sizeof (hashpipe_databuf_t);
     size_t block_size  = sizeof (gpu_output_databuf_block_t);
+//     fprintf(stderr, "block size is: %lu\n", sizeof (gpu_output_databuf_block_t));
     int    n_block = NUM_BLOCKS;
 
     return hashpipe_databuf_create(

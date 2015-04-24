@@ -70,7 +70,7 @@ static void *run(hashpipe_thread_args_t * args)
     int status = 0;
     int row_num = 0;
     int scan_num = 0;
-    fitsfile *fptr = NULL;         
+    fitsfile *fptr = NULL;
     char filename[256];
 
     hashpipe_status_lock_safe(&st);
@@ -276,14 +276,21 @@ fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int 
     if (status)          /* print any error messages */
       fits_report_error(stderr, status);
 
+    
+    // Use this to allow variable bin sizes
+    // TODO: Should this only be 3 chars long?
+    char fits_form[10];
+    sprintf(fits_form, "%dE", BIN_SIZE);
+    //debug
+//     fprintf(stderr, "fits_form: %s\n", fits_form);
+
     // write data table
-    //int data_size = 40;
     char ext_name[] = "DATA";
     int number_columns = 1;
     char *ttype_state[] =
         {(char *)"DATA"};
     char *tform_state[] =
-        {(char *)"40I"};
+        {(char *)fits_form};
     char *tunit_state[] =
         {(char *)"d"};
 
@@ -306,7 +313,7 @@ fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int 
 
 int fits_write_row(fitsfile *fptr, int *data, int row_num) {
     int status = 0;
-    long data_size = 40;
+    long data_size = BIN_SIZE;
 //     fprintf(stderr, "fits_write_row: row = %d\n", row_num);
     /*
     // debug

@@ -87,13 +87,18 @@ static void *run(hashpipe_thread_args_t * args)
 
         db->block[block_idx].mcnt = mcnt++;
 
-//         fprintf(stderr, "\nWriting to block %d on mcnt %d\n", block_idx, mcnt);
+        fprintf(stderr, "\nWriting to block %d on mcnt %d\n", block_idx, mcnt);
 
         // Write data to shared memory
         int i;
-        for (i = 0; i < NUM_ANTENNAS; i++) {
-            db->block[block_idx].data[i] = i + (block_idx * NUM_ANTENNAS);
-//             db->block[block_idx].data[i] = rand(); 
+        for (i = 0; i < BIN_SIZE; i++) {
+//             fprintf(stderr, "i: %d\n", i);
+//             fprintf(stderr, "block_idx: %d\n", block_idx);
+//             fprintf(stderr, "NUM_ANTENNAS: %d\n", NUM_ANTENNAS);
+//             fprintf(stderr, "writing: %f\n", (float)(i + (block_idx * BIN_SIZE)));
+            db->block[block_idx].data[i] = (float) (i + (block_idx * BIN_SIZE));
+//             db->block[block_idx].data[i] = rand();
+//             db->block[block_idx].data[i] = 0.0f;
         }
 
         // Mark block as full

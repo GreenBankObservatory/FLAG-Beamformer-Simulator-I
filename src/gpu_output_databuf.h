@@ -20,21 +20,24 @@
 //# P. O. Box 2
 //# Green Bank, WV 24944-0002 USA
 
-#ifndef _PAPER_DATABUF_H
-#define _PAPER_DATABUF_H
+#ifndef _gpu_output_databuf_h
+#define _gpu_output_databuf_h
 
 #include <stdint.h>
 #include "hashpipe_databuf.h"
 #include "config.h"
 // #define CACHE_ALIGNMENT 128
 #define NUM_ANTENNAS 40
+// The bin size is the lower trianglular portion of the covariance matrix
+// This can be calculated as follows
+#define BIN_SIZE (41*20)
 
 #define NUM_BLOCKS 2
 // #define SCANLEN 5
 
 typedef struct gpu_output_databuf_block {
   int mcnt;
-  int data[NUM_ANTENNAS];
+  float data[BIN_SIZE];
 } gpu_output_databuf_block_t;
 
 typedef struct gpu_output_databuf {

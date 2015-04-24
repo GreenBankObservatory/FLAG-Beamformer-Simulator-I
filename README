@@ -7,7 +7,7 @@ It is still in development, but it should build in its current state.
 When you build this plugin, make sure that you are installing your plugin to the hashpipe installation directory.
 For example, I installed hashpipe to "/home/sandboxes/tchamber/paper/commoninstall" using "./configure --prefix=/home/sandboxes/tchamber/paper/commoninstall".
 So, when I install the fake_gpu plugin, I will also install it to /home/sandboxes/tchamber/paper/commoninstall.
-I will use $INSTALLDIR to refer to the hashpipe installation directory.
+I will use $INSTALLDIR to refer to this common installation directory.
 
 To build:
 
