@@ -10,27 +10,25 @@ So, when I install the fake_gpu plugin, I will also install it to /home/sandboxe
 I will use $INSTALLDIR to refer to this common installation directory.
 
 To build:
-
-From the root of FLAG-Beamformer-Simulator-I:
-
-    $ mkdir build config
-    $ autoreconf -is
-    $ cd build
-    $ ../configure --prefix=$INSTALLDIR --with-hashpipe=$INSTALLDIR
-    $ make
-    $ make install
+    From the root of FLAG-Beamformer-Simulator-I:
+        $ mkdir build config
+        $ autoreconf -is
+        $ cd build
+        $ ../configure --prefix=$INSTALLDIR --with-hashpipe=$INSTALLDIR
+        $ make
+        $ make install
 
 To run:
-
-$ taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread -c 2 fits_writer_thread
+    After setting your PATH to point to $INSTALLDIR:
+        $ taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread -c 2 fits_writer_thread
 
 To start scan:
-$ hashpipe_check_status -k SCANST -s start
+    In a separate terminal on the same machine as above:
+        $ hashpipe_check_status -k SCANST -s start
 
 To change scan length:
-$ hashpipe_check_status -k SCANLEN -i 5
+    $ hashpipe_check_status -k SCANLEN -i 5
 
 Notes:
-
-Be sure to write your fits files to a local disk
-This program will not overwrite FITS files. Instead it will segfault, so be aware of that limitation
+    Be sure to write your fits files to a local disk
+    This program will not overwrite FITS files. Instead it will segfault, so be aware of that limitation.

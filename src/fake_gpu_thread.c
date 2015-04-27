@@ -91,13 +91,21 @@ static void *run(hashpipe_thread_args_t * args)
 
         // Write data to shared memory
         int i;
-        for (i = 0; i < BIN_SIZE * 2; i += 2) {
-            // real
-            db->block[block_idx].data[i] = i/2 + (block_idx * BIN_SIZE);
-            // imaginary
-            db->block[block_idx].data[i + 1] = i/2 + .5 + (block_idx * BIN_SIZE);
-            fprintf(stderr, "wrote real: %f\n", db->block[block_idx].data[i]);
-            fprintf(stderr, "wrote imaginary: %f\n",  db->block[block_idx].data[i + 1]);
+        for (i = 0; i < NUM_CHANNELS; i++)
+        {
+            int j;
+
+            for (j = 0; j < BIN_SIZE * 2; j += 2)
+            {
+                int real_i = j + (i * BIN_SIZE * 2);
+                int imag_i = j + (i * BIN_SIZE * 2) + 1;
+                // real
+                db->block[block_idx].data[real_i] = j/2 + (block_idx * BIN_SIZE);
+                // imaginary
+                db->block[block_idx].data[imag_i] = j/2 + .5 + (block_idx * BIN_SIZE);
+                fprintf(stderr, "wrote real to %d: %f\n", real_i, db->block[block_idx].data[real_i]);
+                fprintf(stderr, "wrote imag to %d: %f\n", imag_i, db->block[block_idx].data[imag_i]);
+            }
         }
 
         // Mark block as full

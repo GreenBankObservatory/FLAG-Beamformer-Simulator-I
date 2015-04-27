@@ -280,9 +280,9 @@ fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int 
     // Use this to allow variable bin sizes
     // TODO: Should this only be 3 chars long?
     char fits_form[10];
-    sprintf(fits_form, "%dC", BIN_SIZE);
+    sprintf(fits_form, "%dC", BIN_SIZE * NUM_CHANNELS);
     //debug
-//     fprintf(stderr, "fits_form: %s\n", fits_form);
+    fprintf(stderr, "fits_form: %s\n", fits_form);
 
     // write data table
     char ext_name[] = "DATA";
@@ -313,7 +313,7 @@ fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int 
 
 int fits_write_row(fitsfile *fptr, float *data, int row_num) {
     int status = 0;
-    long data_size = BIN_SIZE;
+    long data_size = BIN_SIZE * NUM_CHANNELS;
 //     fprintf(stderr, "fits_write_row: row = %d\n", row_num);
     /*
     // debug
