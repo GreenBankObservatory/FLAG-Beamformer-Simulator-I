@@ -31,15 +31,16 @@
 // The bin size is the number of elements in the lower trianglular
 //   portion of the covariance matrix
 // (41 * 20) gives us the number of complex pair elements
-//   we must double that since CFITSIO interperates every two elements as a pair
-#define BIN_SIZE (41 * 20 * 2)
+#define BIN_SIZE (41 * 20)
+// #define BIN_SIZE 4
 
 #define NUM_BLOCKS 2
 // #define SCANLEN 5
 
 typedef struct gpu_output_databuf_block {
   int mcnt;
-  float data[BIN_SIZE];
+  // we must double the elements since CFITSIO interperates every two elements as a pair
+  float data[BIN_SIZE * 2];
 } gpu_output_databuf_block_t;
 
 typedef struct gpu_output_databuf {

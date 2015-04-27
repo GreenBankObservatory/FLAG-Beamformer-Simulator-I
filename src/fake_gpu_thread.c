@@ -90,18 +90,14 @@ static void *run(hashpipe_thread_args_t * args)
         fprintf(stderr, "\nWriting to block %d on mcnt %d\n", block_idx, mcnt);
 
         // Write data to shared memory
-        // TODO: check that BIN_SIZE is even
         int i;
-        for (i = 0; i < BIN_SIZE; i += 2) {
-//             fprintf(stderr, "writing real: %f\n", (float)(i + (block_idx * BIN_SIZE)));
-//             fprintf(stderr, "writing imaginary: %f\n", (float)(i + 1 + (block_idx * BIN_SIZE)));
-//             db->block[block_idx].data[i].real = (float) (i + (block_idx * BIN_SIZE));
-//             db->block[block_idx].data[i].imaginary = (float) (i + 1 + (block_idx * BIN_SIZE));
+        for (i = 0; i < BIN_SIZE * 2; i += 2) {
             // real
-            db->block[block_idx].data[i] = i + (block_idx * BIN_SIZE);
+            db->block[block_idx].data[i] = i/2 + (block_idx * BIN_SIZE);
             // imaginary
-            db->block[block_idx].data[i + 1] = i + .5 + (block_idx * BIN_SIZE);
-//             db->block[block_idx].data[i] = rand();
+            db->block[block_idx].data[i + 1] = i/2 + .5 + (block_idx * BIN_SIZE);
+            fprintf(stderr, "wrote real: %f\n", db->block[block_idx].data[i]);
+            fprintf(stderr, "wrote imaginary: %f\n",  db->block[block_idx].data[i + 1]);
         }
 
         // Mark block as full
