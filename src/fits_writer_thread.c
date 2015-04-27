@@ -280,7 +280,7 @@ fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int 
     // Use this to allow variable bin sizes
     // TODO: Should this only be 3 chars long?
     char fits_form[10];
-    sprintf(fits_form, "%dE", BIN_SIZE);
+    sprintf(fits_form, "%dC", BIN_SIZE);
     //debug
 //     fprintf(stderr, "fits_form: %s\n", fits_form);
 
@@ -324,7 +324,7 @@ int fits_write_row(fitsfile *fptr, float *data, int row_num) {
         testData[di] = (di + (data_size*row_num));
     */
 //     fprintf(stderr, "fits_write_col_int\n");
-    fits_write_col_flt(fptr, 1, row_num + 1, 1, data_size, data, &status);
+    fits_write_col_cmp(fptr, 1, row_num + 1, 1, data_size, data, &status);
     if (status)
       fits_report_error(stderr, status);
     return(status);

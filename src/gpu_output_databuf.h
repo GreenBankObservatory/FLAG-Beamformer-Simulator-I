@@ -30,7 +30,9 @@
 #define NUM_ANTENNAS 40
 // The bin size is the number of elements in the lower trianglular
 //   portion of the covariance matrix
-#define BIN_SIZE (41*20)
+// (41 * 20) gives us the number of complex pair elements
+//   we must double that since CFITSIO interperates every two elements as a pair
+#define BIN_SIZE (41 * 20 * 2)
 
 #define NUM_BLOCKS 2
 // #define SCANLEN 5
