@@ -28,8 +28,8 @@
 #include "config.h"
 // #define CACHE_ALIGNMENT 128
 #define NUM_ANTENNAS 40
-// The bin size is the lower trianglular portion of the covariance matrix
-// This can be calculated as follows
+// The bin size is the number of elements in the lower trianglular
+//   portion of the covariance matrix
 #define BIN_SIZE (41*20)
 
 #define NUM_BLOCKS 2

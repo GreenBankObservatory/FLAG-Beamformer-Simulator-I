@@ -44,7 +44,7 @@
   (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
 
 // Forward declarations for the sake of prettiness
-int fits_write_row(fitsfile *fptr, int *data, int row_num);
+int fits_write_row(fitsfile *fptr, float *data, int row_num);
 fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int *st);
 
 static void *run(hashpipe_thread_args_t * args)
@@ -175,7 +175,7 @@ static void *run(hashpipe_thread_args_t * args)
             
             // write FITS data!
 //             fprintf(stderr, "writing row of data\n");
-            fits_write_row(fptr,  (int*)db->block[block_idx].data, row_num++);
+            fits_write_row(fptr, db->block[block_idx].data, row_num++);
 
             clock_gettime(CLOCK_MONOTONIC, &stop);
             scan_elapsed_time = ELAPSED_NS(start, stop);
@@ -311,7 +311,7 @@ fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int 
 }
 
 
-int fits_write_row(fitsfile *fptr, int *data, int row_num) {
+int fits_write_row(fitsfile *fptr, float *data, int row_num) {
     int status = 0;
     long data_size = BIN_SIZE;
 //     fprintf(stderr, "fits_write_row: row = %d\n", row_num);
@@ -324,7 +324,7 @@ int fits_write_row(fitsfile *fptr, int *data, int row_num) {
         testData[di] = (di + (data_size*row_num));
     */
 //     fprintf(stderr, "fits_write_col_int\n");
-    fits_write_col_int(fptr, 1, row_num + 1, 1, data_size, data, &status);
+    fits_write_col_flt(fptr, 1, row_num + 1, 1, data_size, data, &status);
     if (status)
       fits_report_error(stderr, status);
     return(status);
