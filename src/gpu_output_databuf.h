@@ -40,6 +40,7 @@
 //   That is, the total number of complex pairs we will be writing to shared memory
 //   is given as: BIN_SIZE * NUM_CHANNELS
 #define NUM_CHANNELS 5
+#define TOTAL_DATA_SIZE (BIN_SIZE * NUM_CHANNELS * 2)
 
 #define NUM_BLOCKS 2
 // #define SCANLEN 5
@@ -47,7 +48,7 @@
 typedef struct gpu_output_databuf_block {
   int mcnt;
   // we must double the elements since CFITSIO interperates every two elements as a pair
-  float data[BIN_SIZE * 2];
+  float data[TOTAL_DATA_SIZE];
 } gpu_output_databuf_block_t;
 
 typedef struct gpu_output_databuf {
