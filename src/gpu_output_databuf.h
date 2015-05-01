@@ -31,8 +31,8 @@
 // The bin size is the number of elements in the lower trianglular
 //   portion of the covariance matrix
 //   (41 * 20) gives us the number of complex pair elements
-// #define BIN_SIZE (41 * 20)
-#define BIN_SIZE 4
+#define BIN_SIZE (41 * 20)
+// #define BIN_SIZE 4
 // This is the number of frequency channels that we will be correlating
 //   It will be either 5, 50, or 160, and probably should always be a macro
 //   For the purposes of this simulator we don't care about the input to the correlator
