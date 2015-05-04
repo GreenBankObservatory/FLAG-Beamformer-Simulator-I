@@ -44,7 +44,7 @@
   (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
 
 // Forward declarations for the sake of prettiness
-int fits_write_row(fitsfile *fptr, int mcnt, float *data, int row_num);
+int fits_write_row(fitsfile *fptr, gpu_output_databuf_block_t *block, int row_num);
 fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int *st);
 
 static void *run(hashpipe_thread_args_t * args)
@@ -175,7 +175,7 @@ static void *run(hashpipe_thread_args_t * args)
             
             // write FITS data!
 //             fprintf(stderr, "writing row of data\n");
-            fits_write_row(fptr, db->block[block_idx].header.mcnt, db->block[block_idx].data, row_num++);
+            fits_write_row(fptr, &(db->block[block_idx]), row_num++);
 
             clock_gettime(CLOCK_MONOTONIC, &stop);
             scan_elapsed_time = ELAPSED_NS(start, stop);
@@ -312,12 +312,14 @@ fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int 
     return(fptr);
 }
 
-
-int fits_write_row(fitsfile *fptr, int mcnt, float *data, int row_num) {
+// int mcnt, float *data
+int fits_write_row(fitsfile *fptr, gpu_output_databuf_block_t *block, int row_num) {
     int status = 0;
+	int *mcnt = &(block->header.mcnt);
+	float *data = block->data;
     long data_elements = BIN_SIZE * NUM_CHANNELS;
 
-	fits_write_col_int(fptr, 1,row_num + 1, 1, 1, &mcnt, &status);
+	fits_write_col_int(fptr, 1,row_num + 1, 1, 1, mcnt, &status);
 	
 	if (status)
       fits_report_error(stderr, status);
