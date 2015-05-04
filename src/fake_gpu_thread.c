@@ -85,7 +85,7 @@ static void *run(hashpipe_thread_args_t * args)
         hputs(st.buf, status_key, "sending");
         hashpipe_status_unlock_safe(&st);
 
-        db->block[block_idx].mcnt = mcnt++;
+        db->block[block_idx].header.mcnt = mcnt++;
 
         fprintf(stderr, "\nWriting to block %d on mcnt %d\n", block_idx, mcnt);
 

@@ -44,7 +44,7 @@
   (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
 
 // Forward declarations for the sake of prettiness
-int fits_write_row(fitsfile *fptr, float *data, int row_num);
+int fits_write_row(fitsfile *fptr, int mcnt, float *data, int row_num);
 fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int *st);
 
 static void *run(hashpipe_thread_args_t * args)
@@ -166,7 +166,7 @@ static void *run(hashpipe_thread_args_t * args)
 
         // Scan status is now "scanning"
         // So, read from shared memory
-		mcnt = db->block[block_idx].mcnt;
+		mcnt = db->block[block_idx].header.mcnt;
 // 		fprintf(stderr, "\nReading from block %d on mcnt %d\n", block_idx, mcnt);
 
         if (strcmp(scan_status, "scanning") == 0)
@@ -175,12 +175,14 @@ static void *run(hashpipe_thread_args_t * args)
             
             // write FITS data!
 //             fprintf(stderr, "writing row of data\n");
-            fits_write_row(fptr, db->block[block_idx].data, row_num++);
+            fits_write_row(fptr, db->block[block_idx].header.mcnt, db->block[block_idx].data, row_num++);
 
             clock_gettime(CLOCK_MONOTONIC, &stop);
             scan_elapsed_time = ELAPSED_NS(start, stop);
 
             // If we have scanned for the designated amount of time...
+			// This is converting ns to sec since the scan duration is specified in seconds
+			// TODO: surely there is a better place to do this
             if (scan_elapsed_time >= ((uint64_t) requested_scan_length) * 1000 * 1000 * 1000)
             {
                 // ...write to disk
@@ -212,7 +214,7 @@ static void *run(hashpipe_thread_args_t * args)
         pthread_testcancel();
 	}
 
-	return NULL;
+	return THREAD_OK;
 }
 
 static hashpipe_thread_desc_t fits_writer_thread = {
@@ -279,20 +281,20 @@ fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int 
     
     // Use this to allow variable bin sizes
     // TODO: Should this only be 3 chars long?
-    char fits_form[10];
-    sprintf(fits_form, "%dC", BIN_SIZE * NUM_CHANNELS);
+    char data_form[10];
+    sprintf(data_form, "%dC", BIN_SIZE * NUM_CHANNELS);
     //debug
-    fprintf(stderr, "fits_form: %s\n", fits_form);
+    fprintf(stderr, "data_form: %s\n", data_form);
 
     // write data table
     char ext_name[] = "DATA";
-    int number_columns = 1;
+    int number_columns = 2;
     char *ttype_state[] =
-        {(char *)"DATA"};
+        {"MCNT", "DATA"};
     char *tform_state[] =
-        {(char *)fits_form};
+        {"1J", data_form};
     char *tunit_state[] =
-        {(char *)"d"};
+        {" ", " "};
 
     fits_create_tbl(fptr,
                     BINARY_TBL,
@@ -311,22 +313,20 @@ fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int 
 }
 
 
-int fits_write_row(fitsfile *fptr, float *data, int row_num) {
+int fits_write_row(fitsfile *fptr, int mcnt, float *data, int row_num) {
     int status = 0;
-    long data_size = BIN_SIZE * NUM_CHANNELS;
-//     fprintf(stderr, "fits_write_row: row = %d\n", row_num);
-    /*
-    // debug
-    int testData[40];
-    // create fake data
-    int di = 0;
-    for (di=0; di<data_size; di++)
-        testData[di] = (di + (data_size*row_num));
-    */
-//     fprintf(stderr, "fits_write_col_int\n");
-    fits_write_col_cmp(fptr, 1, row_num + 1, 1, data_size, data, &status);
+    long data_elements = BIN_SIZE * NUM_CHANNELS;
+
+	fits_write_col_int(fptr, 1,row_num + 1, 1, 1, &mcnt, &status);
+	
+	if (status)
+      fits_report_error(stderr, status);
+	
+    fits_write_col_cmp(fptr, 2, row_num + 1, 1, data_elements, data, &status);
+	
     if (status)
       fits_report_error(stderr, status);
+	
     return(status);
 
 }

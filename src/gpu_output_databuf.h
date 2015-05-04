@@ -31,8 +31,8 @@
 // The bin size is the number of elements in the lower trianglular
 //   portion of the covariance matrix
 //   (41 * 20) gives us the number of complex pair elements
-#define BIN_SIZE (41 * 20)
-// #define BIN_SIZE 4
+// #define BIN_SIZE (41 * 20)
+#define BIN_SIZE 4
 // This is the number of frequency channels that we will be correlating
 //   It will be either 5, 50, or 160, and probably should always be a macro
 //   For the purposes of this simulator we don't care about the input to the correlator
@@ -45,10 +45,17 @@
 #define NUM_BLOCKS 2
 // #define SCANLEN 5
 
+// TODO: Cache alignment???
+
+typedef struct gpu_output_databuf_block_header {
+	int mcnt;
+	// time
+} gpu_output_databuf_block_header_t;
+
 typedef struct gpu_output_databuf_block {
-  int mcnt;
-  // we must double the elements since CFITSIO interperates every two elements as a pair
-  float data[TOTAL_DATA_SIZE];
+	gpu_output_databuf_block_header_t header;
+	// we must double the elements since CFITSIO interperates every two elements as a pair
+	float data[TOTAL_DATA_SIZE];
 } gpu_output_databuf_block_t;
 
 typedef struct gpu_output_databuf {
