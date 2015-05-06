@@ -25,7 +25,7 @@
 
 #include <stdint.h>
 #include "hashpipe_databuf.h"
-#include "config.h"
+// #include "config.h"
 // #define CACHE_ALIGNMENT 128
 #define NUM_ANTENNAS 40
 // The bin size is the number of elements in the lower trianglular
