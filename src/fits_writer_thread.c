@@ -318,6 +318,7 @@ int fits_write_row(fitsfile *fptr, gpu_output_databuf_block_t *block, int row_nu
 	int *mcnt = &(block->header.mcnt);
 	float *data = block->data;
     long data_elements = BIN_SIZE * NUM_CHANNELS;
+	fprintf(stderr, "num data els: %ld\n", data_elements);
 
 	fits_write_col_int(fptr, 1,row_num + 1, 1, 1, mcnt, &status);
 	

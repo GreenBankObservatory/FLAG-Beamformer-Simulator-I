@@ -103,8 +103,8 @@ static void *run(hashpipe_thread_args_t * args)
                 db->block[block_idx].data[real_i] = j/2 + (block_idx * BIN_SIZE);
                 // imaginary
                 db->block[block_idx].data[imag_i] = j/2 + .5 + (block_idx * BIN_SIZE);
-                fprintf(stderr, "wrote real to %d: %f\n", real_i, db->block[block_idx].data[real_i]);
-                fprintf(stderr, "wrote imag to %d: %f\n", imag_i, db->block[block_idx].data[imag_i]);
+//                 fprintf(stderr, "wrote real to %d: %f\n", real_i, db->block[block_idx].data[real_i]);
+//                 fprintf(stderr, "wrote imag to %d: %f\n", imag_i, db->block[block_idx].data[imag_i]);
             }
         }
 
