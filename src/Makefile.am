@@ -36,7 +36,7 @@ fake_gpu = fake_gpu_thread.c \
 
 # This is the paper_gpu plugin itself
 lib_LTLIBRARIES		= fake_gpu.la
-fake_gpu_la_SOURCES	= $(fake_gpu) $(gpu_output_databuf)
+fake_gpu_la_SOURCES	= $(fake_gpu) $(gpu_output_databuf) fifo.c
 fake_gpu_la_LIBADD	= -lrt -lcfitsio
 fake_gpu_la_LDFLAGS 	= -avoid-version -module -shared -export-dynamic
 # example_la_LDFLAGS += -L"@XGPU_LIBDIR@" -Wl,-rpath,"@XGPU_LIBDIR@"

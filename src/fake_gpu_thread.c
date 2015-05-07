@@ -38,6 +38,7 @@
 #include "hashpipe.h"
 #include "gpu_output_databuf.h"
 #include "fitsio.h"
+#include "fifo.h"
 
 #define ELAPSED_NS(start,stop) \
   (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
@@ -54,11 +55,27 @@ static void *run(hashpipe_thread_args_t * args)
 
     srand(time(NULL));
 
+	open_fifo("/tmp/fake_gpu_control");
+
+	int cmd = INVALID;
+
     while (run_threads())
     {
+		fprintf(stderr, "# ");
+		
         hashpipe_status_lock_safe(&st);
         hputs(st.buf, status_key, "waiting");
         hashpipe_status_unlock_safe(&st);
+
+		// TODO: spin until we receive a START from the user
+		while (cmd == INVALID)
+		{
+			cmd = check_cmd();
+// 			sleep(1);
+// 			fprintf(stderr, "cmd: %d\n", cmd);
+		}
+
+// 		fprintf(stderr, "received command\n");
 
         // Wait for the current block to be set to free
         while ((rv=gpu_output_databuf_wait_free(db, block_idx)) != HASHPIPE_OK)
