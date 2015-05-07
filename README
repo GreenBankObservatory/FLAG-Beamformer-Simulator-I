@@ -7,28 +7,34 @@ It is still in development, but it should build in its current state.
 When you build this plugin, make sure that you are installing your plugin to the hashpipe installation directory.
 For example, I installed hashpipe to "/home/sandboxes/tchamber/paper/commoninstall" using "./configure --prefix=/home/sandboxes/tchamber/paper/commoninstall".
 So, when I install the fake_gpu plugin, I will also install it to /home/sandboxes/tchamber/paper/commoninstall.
-I will use $INSTALLDIR to refer to this common installation directory.
+I will use $HASHDIR to refer to this common installation directory.
+
+You will also need to run the vegasFitsWriter. It can be found in /home/sandboxes/tchamber/vegas_devel2/src/dibas_fits_writer. This directory will be referred to as $VEGASDIR.
+
+fits_writer_thread has been deprecated and is awaiting removal.
 
 To build:
-    From the root of FLAG-Beamformer-Simulator-I:
+    From the root of FLAG-Beamformer-Simulator-I (henceforth $SIM1):
         $ mkdir build config
         $ autoreconf -is
         $ cd build
-        $ ../configure --prefix=$INSTALLDIR --with-hashpipe=$INSTALLDIR
+        $ ../configure --prefix=$HASHDIR --with-hashpipe=$HASHDIR
         $ make
         $ make install
 
-To run:
-    After setting your PATH to point to $INSTALLDIR:
-        $ taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread -c 2 fits_writer_thread
+To run/start a scan:
+    After setting your PATH to point to $HASHDIR:
+        $ taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread
+		# start
 
-To start scan:
-    In a separate terminal on the same machine as above:
-        $ hashpipe_check_status -k SCANST -s start
+	Now run the set_status script (this will set some necessary status memory key values):
+		$ $SIM1/set_status.sh
+		
+	In another terminal (remember to set the PATH here, too):
+		$ $VEGASDIR/vegasFitsWriter
+		# start
 
-To change scan length:
-    $ hashpipe_check_status -k SCANLEN -i 5
+	The scan should run and output to the directory specified in the DATADIR status key (set in the script above, but feel free to change it).
 
 Notes:
     Be sure to write your fits files to a local disk
-    This program will not overwrite FITS files. Instead it will segfault, so be aware of that limitation.
