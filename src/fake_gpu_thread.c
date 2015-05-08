@@ -75,17 +75,18 @@ static void *run(hashpipe_thread_args_t * args)
 
     float num_blocks_to_write = 0.0f;
     int current_block = 0;
-    // packets per second
-    const int PACKET_RATE = 10;
+    // packets per second received from roach
+    const int PACKET_RATE = 1000;
     // .1ms = .0001 sec
     const float INT_TIME = .0001;
 
     // Will be 30.3 but truncated to 30
 //     const int N = PACKET_RATE * INT_TIME;
-    const int N = 2;
+    const int N = 4;
     const float GPU_DELAY = (float)N / (float)PACKET_RATE;
 
     struct timespec start, stop;
+    struct timespec scan_start, scan_stop;
     long elapsed_time;
 
     open_fifo("/tmp/fake_gpu_control");
@@ -114,6 +115,8 @@ static void *run(hashpipe_thread_args_t * args)
 
         if (cmd == START)
         {
+            clock_gettime(CLOCK_MONOTONIC, &scan_start);
+            
             hashpipe_status_lock_safe(&st);
             hgets(st.buf, "SCANSTAT", SCAN_STATUS_LENGTH, scan_status);
             hashpipe_status_unlock_safe(&st);
@@ -184,9 +187,10 @@ static void *run(hashpipe_thread_args_t * args)
             hputs(st.buf, status_key, "sending");
             hashpipe_status_unlock_safe(&st);
 
-            db->block[block_idx].header.mcnt += N;
+            mcnt += N;
+            db->block[block_idx].header.mcnt = mcnt;
 
-//             fprintf(stderr, "\nWriting to block %d on mcnt %d\n", block_idx, mcnt);
+            fprintf(stderr, "\nWriting to block %d on mcnt %d\n", block_idx, db->block[block_idx].header.mcnt);
 
             // Write data to shared memory
             int i;
@@ -213,21 +217,29 @@ static void *run(hashpipe_thread_args_t * args)
             // Setup for next block
             block_idx = (block_idx + 1) % NUM_BLOCKS;
             current_block++;
-            fprintf(stderr, "current block is: %d\n", current_block);
+            fprintf(stderr, "\tcurrent block is: %d\n", current_block);
 
             clock_gettime(CLOCK_MONOTONIC, &stop);
             elapsed_time = ELAPSED_NS(start, stop);
 
             float delay = GPU_DELAY * 1000000000 - elapsed_time ;
-            fprintf(stderr, "Waiting %f seconds\n", delay / 1000000000);
+            fprintf(stderr, "\tWaiting %f seconds\n", delay / 1000000000);
+            if (delay <= 0)
+            {
+                fprintf(stderr, "WARNING: A negative delay indicates that the scan is NOT running in real time\n");
+//                 exit(EXIT_FAILURE);
+            }
             nsleep(delay);
 
             // Test to see if we are done scanning
             if (current_block >= num_blocks_to_write)
             {
-                fprintf(stderr, "Scan complete\n");
+                
                 current_block = 0;
                 hputs(st.buf, "SCANSTAT", "off");
+                clock_gettime(CLOCK_MONOTONIC, &scan_stop);
+                fprintf(stderr, "Scan complete. \n\tRequested scan time: %d\n\tActual scan time: %f\n",
+                        requested_scan_length, (float)ELAPSED_NS(scan_start, scan_stop) / 1000000000.0);
             }
         }
 
