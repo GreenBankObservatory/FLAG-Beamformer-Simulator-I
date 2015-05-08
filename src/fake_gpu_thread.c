@@ -52,7 +52,6 @@ void nsleep(long ns)
     delay.tv_sec = 0;
     delay.tv_nsec = ns;
 
-//     fprintf(stderr, "sleeping for %ld nanoseconds\n", delay.tv_nsec);
     nanosleep(&delay, NULL);
 }
 
@@ -76,13 +75,13 @@ static void *run(hashpipe_thread_args_t * args)
     float num_blocks_to_write = 0.0f;
     int current_block = 0;
     // packets per second received from roach
-    const int PACKET_RATE = 1000;
-    // .1ms = .0001 sec
-    const float INT_TIME = .0001;
+    const int PACKET_RATE = 100;
+    // 500ms = .5sec
+    const float INT_TIME = .5;
 
     // Will be 30.3 but truncated to 30
-//     const int N = PACKET_RATE * INT_TIME;
-    const int N = 4;
+    const int N = (int)(PACKET_RATE * INT_TIME);
+//     const int N = 4;
     const float GPU_DELAY = (float)N / (float)PACKET_RATE;
 
     struct timespec start, stop;
@@ -98,9 +97,10 @@ static void *run(hashpipe_thread_args_t * args)
     // Force SCANINIT to 0 to make sure we wait for user input
     hputi4(st.buf, "SCANINIT", 0);
     // Set default SCANLEN
-    hputi4(st.buf, "SCANLEN", 5);
+    hputi4(st.buf, "SCANLEN", 10);
     // Set the scan to off by default
     hputs(st.buf, "SCANSTAT", "off");
+//     hputs(st.buf, "STARTIME", "
     hashpipe_status_unlock_safe(&st);
 
     while (run_threads())
@@ -136,7 +136,7 @@ static void *run(hashpipe_thread_args_t * args)
             hgeti4(st.buf, "SCANLEN", &requested_scan_length);
             hashpipe_status_unlock_safe(&st);
 
-            // TODO: calculate number of blocks to write based on SCANLEN
+            // calculate number of blocks to write based on SCANLEN
             num_blocks_to_write = (PACKET_RATE * requested_scan_length) / N;
             fprintf(stderr, "num blocks to write: %f\n", num_blocks_to_write);
 
@@ -189,8 +189,9 @@ static void *run(hashpipe_thread_args_t * args)
             hputs(st.buf, status_key, "sending");
             hashpipe_status_unlock_safe(&st);
 
-            mcnt += N;
+
             db->block[block_idx].header.mcnt = mcnt;
+            mcnt += N;
 
             fprintf(stderr, "\nWriting to block %d on mcnt %d\n", block_idx, db->block[block_idx].header.mcnt);
 
@@ -224,7 +225,8 @@ static void *run(hashpipe_thread_args_t * args)
             clock_gettime(CLOCK_MONOTONIC, &stop);
             elapsed_time = ELAPSED_NS(start, stop);
 
-            float delay = GPU_DELAY * 1000000000 - elapsed_time ;
+            // delay in ns
+            float delay = GPU_DELAY * 1000000000 - elapsed_time;
             fprintf(stderr, "\tWaiting %f seconds\n", delay / 1000000000);
             if (delay <= 0)
             {
@@ -238,10 +240,14 @@ static void *run(hashpipe_thread_args_t * args)
             {
                 
                 current_block = 0;
+                mcnt = 0;
                 hputs(st.buf, "SCANSTAT", "off");
                 clock_gettime(CLOCK_MONOTONIC, &scan_stop);
                 fprintf(stderr, "Scan complete. \n\tRequested scan time: %d\n\tActual scan time: %f\n",
                         requested_scan_length, (float)ELAPSED_NS(scan_start, scan_stop) / 1000000000.0);
+
+                fprintf(stderr, "\nPACKET_RATE: %d\nINT_TIME: %f\nN: %d\nGPU_DELAY: %f\n",
+                    PACKET_RATE, INT_TIME, N, GPU_DELAY);
             }
         }
 
