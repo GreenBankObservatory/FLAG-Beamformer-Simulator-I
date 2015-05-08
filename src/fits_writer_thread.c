@@ -62,6 +62,12 @@ static void *run(hashpipe_thread_args_t * args)
     uint64_t scan_elapsed_time = 0;
     // Requested scan length in seconds
     int requested_scan_length = 0;
+
+	int num_blocks_to_write = 0;
+	// packets per second
+	const int PACKET_RATE = 30300;
+	const int N = 2;
+	const float GPU_DELAY = N / PACKET_RATE; 
     
     // The current scanning status
     char scan_status[SCAN_STATUS_LENGTH];
@@ -72,6 +78,8 @@ static void *run(hashpipe_thread_args_t * args)
     int scan_num = 0;
     fitsfile *fptr = NULL;
     char filename[256];
+
+	
 
     hashpipe_status_lock_safe(&st);
     // Force SCANINIT to 0 to make sure we wait for user input
@@ -131,7 +139,8 @@ static void *run(hashpipe_thread_args_t * args)
             hgeti4(st.buf, "SCANLEN", &requested_scan_length);
             hashpipe_status_unlock_safe(&st);
 
-
+			// TODO: calculate number of blocks to write based on SCANLEN
+			num_blocks_to_write = (PACKET_RATE * requested_scan_length) / N;
 
             // Check to see if the scan length is correct...
             if (requested_scan_length <= 0)

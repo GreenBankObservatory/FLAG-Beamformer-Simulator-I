@@ -40,8 +40,21 @@
 #include "fitsio.h"
 #include "fifo.h"
 
+#define SCAN_STATUS_LENGTH 10
+
 #define ELAPSED_NS(start,stop) \
   (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
+
+void nsleep(long ns)
+{
+    struct timespec delay;
+
+    delay.tv_sec = 0;
+    delay.tv_nsec = ns;
+
+//     fprintf(stderr, "sleeping for %ld nanoseconds\n", delay.tv_nsec);
+    nanosleep(&delay, NULL);
+}
 
 static void *run(hashpipe_thread_args_t * args)
 {
@@ -55,82 +68,168 @@ static void *run(hashpipe_thread_args_t * args)
 
     srand(time(NULL));
 
-	open_fifo("/tmp/fake_gpu_control");
+    // The current scanning status
+    char scan_status[SCAN_STATUS_LENGTH];
+    // Requested scan length in seconds
+    int requested_scan_length = 0;
 
-	int cmd = INVALID;
+    float num_blocks_to_write = 0.0f;
+    int current_block = 0;
+    // packets per second
+    const int PACKET_RATE = 10;
+    // .1ms = .0001 sec
+    const float INT_TIME = .0001;
+
+    // Will be 30.3 but truncated to 30
+//     const int N = PACKET_RATE * INT_TIME;
+    const int N = 2;
+    const float GPU_DELAY = (float)N / (float)PACKET_RATE;
+
+    struct timespec start, stop;
+    long elapsed_time;
+
+    open_fifo("/tmp/fake_gpu_control");
+
+    int cmd = INVALID;
+
+    // TODO: Maybe put some of this in the init function?
+    hashpipe_status_lock_safe(&st);
+    // Force SCANINIT to 0 to make sure we wait for user input
+    hputi4(st.buf, "SCANINIT", 0);
+    // Set default SCANLEN
+    hputi4(st.buf, "SCANLEN", 5);
+    // Set the scan to off by default
+    hputs(st.buf, "SCANSTAT", "off");
+    hashpipe_status_unlock_safe(&st);
 
     while (run_threads())
     {
-		fprintf(stderr, "# ");
-		
         hashpipe_status_lock_safe(&st);
         hputs(st.buf, status_key, "waiting");
+        hgets(st.buf, "SCANSTAT", SCAN_STATUS_LENGTH, scan_status);
         hashpipe_status_unlock_safe(&st);
 
-		// TODO: spin until we receive a START from the user
-		while (cmd == INVALID)
-		{
-			cmd = check_cmd();
-// 			sleep(1);
-// 			fprintf(stderr, "cmd: %d\n", cmd);
-		}
+        // spin until we receive a START from the user
+        cmd = check_cmd();
 
-// 		fprintf(stderr, "received command\n");
-
-        // Wait for the current block to be set to free
-        while ((rv=gpu_output_databuf_wait_free(db, block_idx)) != HASHPIPE_OK)
+        if (cmd == START)
         {
-            if (rv==HASHPIPE_TIMEOUT)
+            hashpipe_status_lock_safe(&st);
+            hgets(st.buf, "SCANSTAT", SCAN_STATUS_LENGTH, scan_status);
+            hashpipe_status_unlock_safe(&st);
+    
+            if (strcmp(scan_status, "scanning") == 0)
             {
-                hashpipe_status_lock_safe(&st);
-                hputs(st.buf, status_key, "blocked");
-                hashpipe_status_unlock_safe(&st);
+                fprintf(stderr, "We are already in a scan\n");
                 continue;
             }
-            else
+    
+            hashpipe_status_lock_safe(&st);
+            // ...set status to scanning...
+            hputs(st.buf, "SCANSTAT", "scanning");
+            // ...find out how long we should scan
+            hgeti4(st.buf, "SCANLEN", &requested_scan_length);
+            hashpipe_status_unlock_safe(&st);
+
+            // TODO: calculate number of blocks to write based on SCANLEN
+            num_blocks_to_write = (PACKET_RATE * requested_scan_length) / N;
+            fprintf(stderr, "num blocks to write: %f\n", num_blocks_to_write);
+
+            // Check to see if the scan length is correct...
+            if (requested_scan_length <= 0)
             {
-                hashpipe_error(__FUNCTION__, "error waiting for free databuf");
-                pthread_exit(NULL);
-                break;
+                // ...if not, error...
+                hashpipe_error(__FUNCTION__, "SCANLEN has either not been set or has been set to an invalid value");
+                // ...stop the scan...
+                hputs(st.buf, "SCANSTAT", "off");
+                // ...and skip the rest of the block
+                // TODO: should this be happening?
+                continue;
             }
+
+            // TODO: check that num blocks to write is an integer
         }
 
-        sleep(1);
 
+        // Now we can check if we are in a scan or not
         hashpipe_status_lock_safe(&st);
-        // Set status to sending
-        hputs(st.buf, status_key, "sending");
+        hgets(st.buf, "SCANSTAT", SCAN_STATUS_LENGTH, scan_status);
         hashpipe_status_unlock_safe(&st);
-
-        db->block[block_idx].header.mcnt = mcnt++;
-
-        fprintf(stderr, "\nWriting to block %d on mcnt %d\n", block_idx, mcnt);
-
-        // Write data to shared memory
-        int i;
-        for (i = 0; i < NUM_CHANNELS; i++)
+        if (strcmp(scan_status, "scanning") == 0)
         {
-            int j;
-
-            for (j = 0; j < BIN_SIZE * 2; j += 2)
+            clock_gettime(CLOCK_MONOTONIC, &start);
+            
+            // Wait for the current block to be set to free
+            while ((rv=gpu_output_databuf_wait_free(db, block_idx)) != HASHPIPE_OK)
             {
-                int real_i = j + (i * BIN_SIZE * 2);
-                int imag_i = j + (i * BIN_SIZE * 2) + 1;
-                // real
-                db->block[block_idx].data[real_i] = j/2 + (block_idx * BIN_SIZE);
-                // imaginary
-                db->block[block_idx].data[imag_i] = j/2 + .5 + (block_idx * BIN_SIZE);
-//                 fprintf(stderr, "wrote real to %d: %f\n", real_i, db->block[block_idx].data[real_i]);
-//                 fprintf(stderr, "wrote imag to %d: %f\n", imag_i, db->block[block_idx].data[imag_i]);
+                if (rv==HASHPIPE_TIMEOUT)
+                {
+                    hashpipe_status_lock_safe(&st);
+                    hputs(st.buf, status_key, "blocked");
+                    hashpipe_status_unlock_safe(&st);
+                    continue;
+                }
+                else
+                {
+                    hashpipe_error(__FUNCTION__, "error waiting for free databuf");
+                    pthread_exit(NULL);
+                    break;
+                }
+            }
+
+
+
+            hashpipe_status_lock_safe(&st);
+            // Set status to sending
+            hputs(st.buf, status_key, "sending");
+            hashpipe_status_unlock_safe(&st);
+
+            db->block[block_idx].header.mcnt += N;
+
+//             fprintf(stderr, "\nWriting to block %d on mcnt %d\n", block_idx, mcnt);
+
+            // Write data to shared memory
+            int i;
+            for (i = 0; i < NUM_CHANNELS; i++)
+            {
+                int j;
+
+                for (j = 0; j < BIN_SIZE * 2; j += 2)
+                {
+                    int real_i = j + (i * BIN_SIZE * 2);
+                    int imag_i = j + (i * BIN_SIZE * 2) + 1;
+                    // real
+                    db->block[block_idx].data[real_i] = j/2 + (block_idx * BIN_SIZE);
+                    // imaginary
+                    db->block[block_idx].data[imag_i] = j/2 + .5 + (block_idx * BIN_SIZE);
+    //                 fprintf(stderr, "wrote real to %d: %f\n", real_i, db->block[block_idx].data[real_i]);
+    //                 fprintf(stderr, "wrote imag to %d: %f\n", imag_i, db->block[block_idx].data[imag_i]);
+                }
+            }
+
+            // Mark block as full
+            gpu_output_databuf_set_filled(db, block_idx);
+
+            // Setup for next block
+            block_idx = (block_idx + 1) % NUM_BLOCKS;
+            current_block++;
+            fprintf(stderr, "current block is: %d\n", current_block);
+
+            clock_gettime(CLOCK_MONOTONIC, &stop);
+            elapsed_time = ELAPSED_NS(start, stop);
+
+            float delay = GPU_DELAY * 1000000000 - elapsed_time ;
+            fprintf(stderr, "Waiting %f seconds\n", delay / 1000000000);
+            nsleep(delay);
+
+            // Test to see if we are done scanning
+            if (current_block >= num_blocks_to_write)
+            {
+                fprintf(stderr, "Scan complete\n");
+                current_block = 0;
+                hputs(st.buf, "SCANSTAT", "off");
             }
         }
-
-        // Mark block as full
-        gpu_output_databuf_set_filled(db, block_idx);
-
-        // Setup for next block
-        block_idx = (block_idx + 1) % NUM_BLOCKS;
-//         fprintf(stderr, "pitcher's block_idx is now: %d\n", block_idx);
 
         /* Will exit if thread has been cancelled */
         pthread_testcancel();

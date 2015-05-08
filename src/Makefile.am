@@ -24,8 +24,9 @@ AM_CPPFLAGS	 = -I"@HASHPIPE_INCDIR@" -I "/home/gbt1/cfitsio"
 # AM_CPPFLAGS += -I"@XGPU_INCDIR@"
 
 # AM_CFLAGS is used for all C compiles
-AM_CFLAGS = -ggdb -fPIC -O3 -Wall -Werror -fno-strict-aliasing
+AM_CFLAGS = -ggdb -fPIC -O3 -Wall  -fno-strict-aliasing 
 # -mavx <-- evil. won't let me write floats to shm
+# -Werror <-- treats warnings as errors :(
 
 # Convenience variables to group source files
 gpu_output_databuf = gpu_output_databuf.h \
