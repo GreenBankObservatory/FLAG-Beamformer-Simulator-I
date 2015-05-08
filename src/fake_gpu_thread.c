@@ -105,6 +105,8 @@ static void *run(hashpipe_thread_args_t * args)
 
     while (run_threads())
     {
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        
         hashpipe_status_lock_safe(&st);
         hputs(st.buf, status_key, "waiting");
         hgets(st.buf, "SCANSTAT", SCAN_STATUS_LENGTH, scan_status);
@@ -160,7 +162,7 @@ static void *run(hashpipe_thread_args_t * args)
         hashpipe_status_unlock_safe(&st);
         if (strcmp(scan_status, "scanning") == 0)
         {
-            clock_gettime(CLOCK_MONOTONIC, &start);
+//             clock_gettime(CLOCK_MONOTONIC, &start);
             
             // Wait for the current block to be set to free
             while ((rv=gpu_output_databuf_wait_free(db, block_idx)) != HASHPIPE_OK)
