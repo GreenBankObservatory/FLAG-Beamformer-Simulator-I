@@ -47,12 +47,61 @@
 
 void nsleep(long ns)
 {
-    struct timespec delay;
+    timespec delay;
 
-    delay.tv_sec = 0;
-    delay.tv_nsec = ns;
+    delay.tv_sec = ns / 1000000000;
+    delay.tv_nsec = ns % 1000000000;
 
     nanosleep(&delay, NULL);
+}
+
+#define MJD_1970_EPOCH (40587)
+double timeval_2_mjd(timeval *tv)
+{
+    double dmjd = tv->tv_sec / 86400 + MJD_1970_EPOCH;
+    
+    dmjd += (tv->tv_sec % 86400) / 86400.0;
+    
+    return dmjd;
+}
+
+// Converts a DMJD to a time_t (seconds since epoch)
+time_t dmjd_2_secs(double dmjd)
+{
+    double d;
+    double mjd;
+
+    d = modf(dmjd, &mjd);
+    
+    return (86400 * (mjd - MJD_1970_EPOCH)) + (86400 * d);
+}
+
+// Gets the current time as a DMJD
+double get_curr_time_dmjd()
+{
+   timeval time;
+   gettimeofday(&time, 0);
+   return timeval_2_mjd(&time);
+}
+
+static int init(struct hashpipe_thread_args *args)
+{
+    srand(time(NULL));
+    if (open_fifo("/tmp/fake_gpu_control") == -1)
+        return -1;
+    
+    hashpipe_status_t st = args->st;
+
+    hashpipe_status_lock_safe(&st);
+    // Force SCANINIT to 0 to make sure we wait for user input
+    hputi4(st.buf, "SCANINIT", 0);
+    // Set default SCANLEN
+    hputi4(st.buf, "SCANLEN", 2);
+    // Set the scan to off by default
+    hputs(st.buf, "SCANSTAT", "off");
+    hashpipe_status_unlock_safe(&st);
+
+    return 0;
 }
 
 static void *run(hashpipe_thread_args_t * args)
@@ -61,51 +110,45 @@ static void *run(hashpipe_thread_args_t * args)
     hashpipe_status_t st = args->st;
     const char * status_key = args->thread_desc->skey;
 
+    // Return value; temporary value used to evaluate result of function calls
     int rv;
+
+    // The id of the current block
     int block_idx = 0;
+    // The current frame counter value
     int mcnt = 0;
 
-    srand(time(NULL));
-
-    // The current scanning status
+    // The current status of the scan
     char scan_status[SCAN_STATUS_LENGTH];
     // Requested scan length in seconds
-    int requested_scan_length = 0;
+    int requested_scan_length = -1;
 
-    float num_blocks_to_write = 0.0f;
+    // The number of blocks we will write in a scan. Derived from requested_scan_length
+    int num_blocks_to_write = -1;
     int current_block = 0;
     // packets per second received from roach
     const int PACKET_RATE = 100;
-    // 500ms = .5sec
+    // Integration time in ms?? can't remember
     const float INT_TIME = .5;
 
-    // Will be 30.3 but truncated to 30
+    // This is what mcnt will increment by
     const int N = (int)(PACKET_RATE * INT_TIME);
-//     const int N = 4;
     const float GPU_DELAY = (float)N / (float)PACKET_RATE;
 
-    struct timespec start, stop;
-    struct timespec scan_start, scan_stop;
-    long elapsed_time;
-
-    open_fifo("/tmp/fake_gpu_control");
+    timespec loop_start, loop_end;
+    timespec scan_start_time, scan_stop_time;
 
     int cmd = INVALID;
+    
+    timeval curr_timeval;
+    timeval start_timeval;
 
-    // TODO: Maybe put some of this in the init function?
-    hashpipe_status_lock_safe(&st);
-    // Force SCANINIT to 0 to make sure we wait for user input
-    hputi4(st.buf, "SCANINIT", 0);
-    // Set default SCANLEN
-    hputi4(st.buf, "SCANLEN", 10);
-    // Set the scan to off by default
-    hputs(st.buf, "SCANSTAT", "off");
-//     hputs(st.buf, "STARTIME", "
-    hashpipe_status_unlock_safe(&st);
+    double curr_time_dmjd = -1;
+    double start_time_dmjd = -1;
 
     while (run_threads())
     {
-        clock_gettime(CLOCK_MONOTONIC, &start);
+        clock_gettime(CLOCK_MONOTONIC, &loop_start);
         
         hashpipe_status_lock_safe(&st);
         hputs(st.buf, status_key, "waiting");
@@ -114,31 +157,46 @@ static void *run(hashpipe_thread_args_t * args)
 
         // spin until we receive a START from the user
         cmd = check_cmd();
-
         if (cmd == START)
         {
-            clock_gettime(CLOCK_MONOTONIC, &scan_start);
-            
             hashpipe_status_lock_safe(&st);
             hgets(st.buf, "SCANSTAT", SCAN_STATUS_LENGTH, scan_status);
             hashpipe_status_unlock_safe(&st);
-    
             if (strcmp(scan_status, "scanning") == 0)
             {
                 fprintf(stderr, "We are already in a scan\n");
                 continue;
             }
+
+            // Calculate when the scan should start
+            // TODO: right now this just starts 5 seconds after we recv START
+            // Set curr_timeval to the current time
+            gettimeofday(&curr_timeval, 0);
+            // Set start_timeval to 5 seconds after that
+            start_timeval = curr_timeval;
+            start_timeval.tv_sec += 5;
+
+            curr_time_dmjd = timeval_2_mjd(&curr_timeval);
+            start_time_dmjd = timeval_2_mjd(&start_timeval);
+
+            hashpipe_status_lock_safe(&st);
+            // TODO: Verify that my changes to hputr8 were necessary/did not break anything
+            hputr8(st.buf, "STRTDMJD", start_time_dmjd);
+            hashpipe_status_unlock_safe(&st);
     
             hashpipe_status_lock_safe(&st);
-            // ...set status to scanning...
-            hputs(st.buf, "SCANSTAT", "scanning");
             // ...find out how long we should scan
             hgeti4(st.buf, "SCANLEN", &requested_scan_length);
+            hgetr8(st.buf, "STRTDMJD", &start_time_dmjd);
+            hputs(st.buf, "SCANSTAT", "committed");
             hashpipe_status_unlock_safe(&st);
-
+            
             // calculate number of blocks to write based on SCANLEN
             num_blocks_to_write = (PACKET_RATE * requested_scan_length) / N;
-            fprintf(stderr, "num blocks to write: %f\n", num_blocks_to_write);
+            fprintf(stderr, "Number of blocks to write: %d\n", num_blocks_to_write);
+
+//             fprintf(stderr, "The current dmjd is: %f; the start dmjd is: %f\n", curr_time_dmjd, start_time_dmjd);
+            fprintf(stderr, "The scan will start in %lu seconds\n", dmjd_2_secs(start_time_dmjd) - dmjd_2_secs(get_curr_time_dmjd()));
 
             // Check to see if the scan length is correct...
             if (requested_scan_length <= 0)
@@ -146,7 +204,9 @@ static void *run(hashpipe_thread_args_t * args)
                 // ...if not, error...
                 hashpipe_error(__FUNCTION__, "SCANLEN has either not been set or has been set to an invalid value");
                 // ...stop the scan...
+                hashpipe_status_lock_safe(&st);
                 hputs(st.buf, "SCANSTAT", "off");
+                hashpipe_status_unlock_safe(&st);
                 // ...and skip the rest of the block
                 // TODO: should this be happening?
                 continue;
@@ -154,16 +214,50 @@ static void *run(hashpipe_thread_args_t * args)
 
             // TODO: check that num blocks to write is an integer
         }
+        else if (cmd == STOP || cmd == QUIT)
+        {
+            fprintf(stderr, "Stop observations.\n");
 
+            hashpipe_status_lock_safe(&st);
+            hputs(st.buf, "SCANSTAT", "off");
+            hashpipe_status_unlock_safe(&st);
+
+            current_block = 0;
+            mcnt = 0;
+
+            if (cmd == QUIT)
+            {
+                fprintf(stderr, "Quitting.\n");
+                // TODO: Why doesn't this work?
+                pthread_exit(NULL);
+                break;
+//                 exit(EXIT_SUCCESS);
+            }
+        }
 
         // Now we can check if we are in a scan or not
         hashpipe_status_lock_safe(&st);
         hgets(st.buf, "SCANSTAT", SCAN_STATUS_LENGTH, scan_status);
         hashpipe_status_unlock_safe(&st);
-        if (strcmp(scan_status, "scanning") == 0)
+
+        // If we are "committed" - that is, we are waiting to reach the scan start time...
+        if (strcmp(scan_status, "committed") == 0)
         {
-//             clock_gettime(CLOCK_MONOTONIC, &start);
-            
+            curr_time_dmjd = get_curr_time_dmjd();
+            if (curr_time_dmjd >= start_time_dmjd)
+            {
+                fprintf(stderr, "Starting scan!\n");
+                hashpipe_status_lock_safe(&st);
+                hputs(st.buf, "SCANSTAT", "scanning");
+                hashpipe_status_unlock_safe(&st);
+
+                // Start the scan timer
+                clock_gettime(CLOCK_MONOTONIC, &scan_start_time);
+            }
+        }
+        // If we are "scanning"...
+        else if (strcmp(scan_status, "scanning") == 0)
+        {
             // Wait for the current block to be set to free
             while ((rv=gpu_output_databuf_wait_free(db, block_idx)) != HASHPIPE_OK)
             {
@@ -182,13 +276,10 @@ static void *run(hashpipe_thread_args_t * args)
                 }
             }
 
-
-
             hashpipe_status_lock_safe(&st);
             // Set status to sending
-            hputs(st.buf, status_key, "sending");
+            hputs(st.buf, status_key, "writing");
             hashpipe_status_unlock_safe(&st);
-
 
             db->block[block_idx].header.mcnt = mcnt;
             mcnt += N;
@@ -200,14 +291,14 @@ static void *run(hashpipe_thread_args_t * args)
             for (i = 0; i < NUM_CHANNELS; i++)
             {
                 int j;
-
                 for (j = 0; j < BIN_SIZE * 2; j += 2)
                 {
+                    // index counters
                     int real_i = j + (i * BIN_SIZE * 2);
                     int imag_i = j + (i * BIN_SIZE * 2) + 1;
-                    // real
+                    // real half of pair
                     db->block[block_idx].data[real_i] = j/2 + (block_idx * BIN_SIZE);
-                    // imaginary
+                    // imaginary half of pair
                     db->block[block_idx].data[imag_i] = j/2 + .5 + (block_idx * BIN_SIZE);
     //                 fprintf(stderr, "wrote real to %d: %f\n", real_i, db->block[block_idx].data[real_i]);
     //                 fprintf(stderr, "wrote imag to %d: %f\n", imag_i, db->block[block_idx].data[imag_i]);
@@ -220,31 +311,28 @@ static void *run(hashpipe_thread_args_t * args)
             // Setup for next block
             block_idx = (block_idx + 1) % NUM_BLOCKS;
             current_block++;
-            fprintf(stderr, "\tcurrent block is: %d\n", current_block);
+            fprintf(stderr, "\tCurrent block is: %d\n", current_block);
 
-            clock_gettime(CLOCK_MONOTONIC, &stop);
-            elapsed_time = ELAPSED_NS(start, stop);
+            clock_gettime(CLOCK_MONOTONIC, &loop_end);
 
             // delay in ns
-            float delay = GPU_DELAY * 1000000000 - elapsed_time;
+            float delay = GPU_DELAY * 1000000000 - ELAPSED_NS(loop_start, loop_end);
             fprintf(stderr, "\tWaiting %f seconds\n", delay / 1000000000);
             if (delay <= 0)
             {
                 fprintf(stderr, "WARNING: A negative delay indicates that the scan is NOT running in real time\n");
-//                 exit(EXIT_FAILURE);
             }
             nsleep(delay);
 
             // Test to see if we are done scanning
             if (current_block >= num_blocks_to_write)
             {
-                
                 current_block = 0;
                 mcnt = 0;
                 hputs(st.buf, "SCANSTAT", "off");
-                clock_gettime(CLOCK_MONOTONIC, &scan_stop);
-                fprintf(stderr, "Scan complete. \n\tRequested scan time: %d\n\tActual scan time: %f\n",
-                        requested_scan_length, (float)ELAPSED_NS(scan_start, scan_stop) / 1000000000.0);
+                clock_gettime(CLOCK_MONOTONIC, &scan_stop_time);
+                fprintf(stderr, "\nScan complete!\n\tRequested scan time: %d\n\tActual scan time: %f\n",
+                        requested_scan_length, (float)ELAPSED_NS(scan_start_time, scan_stop_time) / 1000000000.0);
 
                 fprintf(stderr, "\nPACKET_RATE: %d\nINT_TIME: %f\nN: %d\nGPU_DELAY: %f\n",
                     PACKET_RATE, INT_TIME, N, GPU_DELAY);
@@ -261,7 +349,7 @@ static void *run(hashpipe_thread_args_t * args)
 static hashpipe_thread_desc_t fake_gpu_thread = {
     name: "fake_gpu_thread",
     skey: "FGPUSTAT",
-    init: NULL,
+    init: init,
     run:  run,
     ibuf_desc: {NULL},
     obuf_desc: {gpu_output_databuf_create}

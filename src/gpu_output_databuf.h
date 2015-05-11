@@ -63,7 +63,8 @@ typedef struct gpu_output_databuf {
 	gpu_output_databuf_block_t block[NUM_BLOCKS];
 } gpu_output_databuf_t;
 
-
+typedef struct timeval timeval;
+typedef struct timespec timespec;
 /*
  * OUTPUT BUFFER FUNCTIONS
  */
