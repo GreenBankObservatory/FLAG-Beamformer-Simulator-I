@@ -21,7 +21,7 @@
 //# Green Bank, WV 24944-0002 USA
 
 // run with:
-// $ clean_ipc; taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread -c 2 fake_gpu_test_thread
+// $ clean_ipc; taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,44 +45,12 @@
 #define ELAPSED_NS(start,stop) \
   (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
 
-void nsleep(long ns)
-{
-    timespec delay;
-
-    delay.tv_sec = ns / 1000000000;
-    delay.tv_nsec = ns % 1000000000;
-
-    nanosleep(&delay, NULL);
-}
-
 #define MJD_1970_EPOCH (40587)
-double timeval_2_mjd(timeval *tv)
-{
-    double dmjd = tv->tv_sec / 86400 + MJD_1970_EPOCH;
-    
-    dmjd += (tv->tv_sec % 86400) / 86400.0;
-    
-    return dmjd;
-}
 
-// Converts a DMJD to a time_t (seconds since epoch)
-time_t dmjd_2_secs(double dmjd)
-{
-    double d;
-    double mjd;
-
-    d = modf(dmjd, &mjd);
-    
-    return (86400 * (mjd - MJD_1970_EPOCH)) + (86400 * d);
-}
-
-// Gets the current time as a DMJD
-double get_curr_time_dmjd()
-{
-   timeval time;
-   gettimeofday(&time, 0);
-   return timeval_2_mjd(&time);
-}
+void nsleep(long ns);
+double timeval_2_mjd(timeval *tv);
+time_t dmjd_2_secs(double dmjd);
+double get_curr_time_dmjd();
 
 static int init(struct hashpipe_thread_args *args)
 {
@@ -141,7 +109,7 @@ static void *run(hashpipe_thread_args_t * args)
     int cmd = INVALID;
     
     timeval curr_timeval;
-    timeval start_timeval;
+//     timeval start_timeval;
 
     double curr_time_dmjd = -1;
     double start_time_dmjd = -1;
@@ -159,6 +127,8 @@ static void *run(hashpipe_thread_args_t * args)
         cmd = check_cmd();
         if (cmd == START)
         {
+            fprintf(stderr, "START received!\n");
+            
             hashpipe_status_lock_safe(&st);
             hgets(st.buf, "SCANSTAT", SCAN_STATUS_LENGTH, scan_status);
             hashpipe_status_unlock_safe(&st);
@@ -173,30 +143,40 @@ static void *run(hashpipe_thread_args_t * args)
             // Set curr_timeval to the current time
             gettimeofday(&curr_timeval, 0);
             // Set start_timeval to 5 seconds after that
-            start_timeval = curr_timeval;
-            start_timeval.tv_sec += 5;
+//             start_timeval = curr_timeval;
+//             start_timeval.tv_sec += 5;
 
-            curr_time_dmjd = timeval_2_mjd(&curr_timeval);
-            start_time_dmjd = timeval_2_mjd(&start_timeval);
+//             curr_time_dmjd = timeval_2_mjd(&curr_timeval);
+//             start_time_dmjd = timeval_2_mjd(&start_timeval);
 
-            hashpipe_status_lock_safe(&st);
-            // TODO: Verify that my changes to hputr8 were necessary/did not break anything
-            hputr8(st.buf, "STRTDMJD", start_time_dmjd);
-            hashpipe_status_unlock_safe(&st);
+//             // TODO: This is just for dev purposes; in production this value will be set elsewhere
+//             hashpipe_status_lock_safe(&st);
+//             // TODO: Verify that my changes to hputr8 were necessary/did not break anything
+//             hputr8(st.buf, "STRTDMJD", start_time_dmjd);
+//             hashpipe_status_unlock_safe(&st);
     
             hashpipe_status_lock_safe(&st);
             // ...find out how long we should scan
             hgeti4(st.buf, "SCANLEN", &requested_scan_length);
-            hgetr8(st.buf, "STRTDMJD", &start_time_dmjd);
+            
+            if (!hgetr8(st.buf, "STRTDMJD", &start_time_dmjd))
+            {
+                fprintf(stderr, "STRTDMJD keyword is not set!\n");
+                continue;
+            }
+                
             hputs(st.buf, "SCANSTAT", "committed");
             hashpipe_status_unlock_safe(&st);
+
+//             fprintf(stderr, "SRTDMJD: %f\n", start_time_dmjd
             
             // calculate number of blocks to write based on SCANLEN
             num_blocks_to_write = (PACKET_RATE * requested_scan_length) / N;
             fprintf(stderr, "Number of blocks to write: %d\n", num_blocks_to_write);
 
-//             fprintf(stderr, "The current dmjd is: %f; the start dmjd is: %f\n", curr_time_dmjd, start_time_dmjd);
+            fprintf(stderr, "The scan will start at DMJD: %f\n", start_time_dmjd);
             fprintf(stderr, "The scan will start in %lu seconds\n", dmjd_2_secs(start_time_dmjd) - dmjd_2_secs(get_curr_time_dmjd()));
+            fprintf(stderr, "The scan will last %d seconds\n", requested_scan_length);
 
             // Check to see if the scan length is correct...
             if (requested_scan_length <= 0)
@@ -244,7 +224,7 @@ static void *run(hashpipe_thread_args_t * args)
         if (strcmp(scan_status, "committed") == 0)
         {
             curr_time_dmjd = get_curr_time_dmjd();
-            if (curr_time_dmjd >= start_time_dmjd)
+            if (curr_time_dmjd >= start_time_dmjd && start_time_dmjd != -1)
             {
                 fprintf(stderr, "Starting scan!\n");
                 hashpipe_status_lock_safe(&st);
@@ -336,6 +316,8 @@ static void *run(hashpipe_thread_args_t * args)
 
                 fprintf(stderr, "\nPACKET_RATE: %d\nINT_TIME: %f\nN: %d\nGPU_DELAY: %f\n",
                     PACKET_RATE, INT_TIME, N, GPU_DELAY);
+
+                fprintf(stderr, "\nEND OF SCAN\n");
             }
         }
 
@@ -344,6 +326,44 @@ static void *run(hashpipe_thread_args_t * args)
     }
     
     return THREAD_OK;
+}
+
+void nsleep(long ns)
+{
+    timespec delay;
+
+    delay.tv_sec = ns / 1000000000;
+    delay.tv_nsec = ns % 1000000000;
+
+    nanosleep(&delay, NULL);
+}
+
+double timeval_2_mjd(timeval *tv)
+{
+    double dmjd = tv->tv_sec / 86400 + MJD_1970_EPOCH;
+
+    dmjd += (tv->tv_sec % 86400) / 86400.0;
+
+    return dmjd;
+}
+
+// Converts a DMJD to a time_t (seconds since epoch)
+time_t dmjd_2_secs(double dmjd)
+{
+    double d;
+    double mjd;
+
+    d = modf(dmjd, &mjd);
+
+    return (86400 * (mjd - MJD_1970_EPOCH)) + (86400 * d);
+}
+
+// Gets the current time as a DMJD
+double get_curr_time_dmjd()
+{
+   timeval time;
+   gettimeofday(&time, 0);
+   return timeval_2_mjd(&time);
 }
 
 static hashpipe_thread_desc_t fake_gpu_thread = {
