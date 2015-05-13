@@ -1,0 +1,59 @@
+# Copyright (C) 2015 Associated Universities, Inc. Washington DC, USA.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+# Correspondence concerning GBT software should be addressed as follows:
+# GBT Operations
+# National Radio Astronomy Observatory
+# P. O. Box 2
+# Green Bank, WV 24944-0002 USA
+
+# WARNING: This script will delete ALL shared memory segments and semaphore arrays owned by the CURRENT USER.
+#          It will also delte ALL semaphores in /dev/shm owned by the CURRENT USER
+#          PLEASE READ CODE BEFORE USING
+
+python /home/sandboxes/tchamber/paper/clean_ipc.py
+echo -e "All shared memory segments and semaphore arrays owned by $USER have been removed\n"
+
+find_sem="find /dev/shm -type f -name sem.users_$USER*"
+# Count the number of sem locks owned by the current user
+count="$($find_sem | wc -l)"
+# echo "count: ${count}"
+
+if [ "${count}" != "0" ]; then
+	if [ "$HOSTNAME" = "west" ]; then
+		# echo "Would you like to delete your sem locks?"
+		$find_sem
+
+		# echo -e "\nContinue? 'y' for yes, anything else for no"
+		# read response
+		# if [ $response = "y" ]; then
+			# I think this is safer than removing all the files owned by the current user
+			rm /dev/shm/sem.users_$USER*
+		# fi
+	else
+		echo "Invalid host: $HOSTNAME"
+	fi
+else
+	echo "No sem locks to remove"
+fi
+
+echo -e "\nResults:"
+echo "---------------------------------------------------------------------------------------------------"
+echo "IPC Status:"
+ipcs
+echo "Contents of: /dev/shm on $HOSTNAME"
+ls -l /dev/shm
+echo "---------------------------------------------------------------------------------------------------"

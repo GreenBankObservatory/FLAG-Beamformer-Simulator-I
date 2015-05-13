@@ -1,3 +1,5 @@
+# -*- coding: iso-8859-1 -*-
+
 # Copyright (C) 2015 Associated Universities, Inc. Washington DC, USA.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -20,17 +22,25 @@
 # P. O. Box 2
 # Green Bank, WV 24944-0002 USA
 
-# WARNING: This script will ruthlessly murder any process whose name matches the strings "hashpipe" or "vegasFitsWriter"
+import commands
+from subprocess import call
+import getpass
 
-pkill ()
-{
-    echo "Killing process $1 with pid $(pgrep $1)";
-    kill -9 $(pgrep $1)
-}
+user = getpass.getuser()
 
-pkill hashpipe
-pkill vegasFitsWriter
-clean_ipc
+status = "shmid"
 
-cat /dev/null > /tmp/fake_gpu_control
-cat /dev/null > /tmp/vegas_fits_control
+ipcs = commands.getstatusoutput('ipcs')[1]
+
+for line in ipcs.splitlines():
+	for word in line.split():
+		if word == "semid":
+			status = word
+			
+		if word == user:
+			if (status == "shmid"):
+				call(["ipcrm", "-m", lastword])
+			if (status == "semid"):
+				call(["ipcrm", "-s", lastword])
+			#print 
+		lastword = word

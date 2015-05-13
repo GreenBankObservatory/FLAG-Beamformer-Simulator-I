@@ -31,9 +31,11 @@ For example, I installed hashpipe to "/home/sandboxes/tchamber/paper/commoninsta
 So, when I install the fake_gpu plugin, I will also install it to /home/sandboxes/tchamber/paper/commoninstall.
 I will use $HASHDIR to refer to this common installation directory.
 
-You will also need to run the vegasFitsWriter. It can be found in /home/sandboxes/tchamber/vegas_devel2/src/dibas_fits_writer. This directory will be referred to as $VEGASDIR.
+You will also need to run the vegasFitsWriter. It can be found in /home/sandboxes/tchamber/vegas_devel3/vegas_devel/src/dibas_fits_writer. This directory will be referred to as $VEGASDIR.
 
 fits_writer_thread has been deprecated and is awaiting removal.
+
+vegasFitsWriter is replacing it, but we don't have a publically available repo for it yet, so right now there's now way for non-GB folks to run this. Sorry about that :(
 
 To build:
     From the root of FLAG-Beamformer-Simulator-I (henceforth $SIM1):
@@ -44,13 +46,19 @@ To build:
         $ make
         $ make install
 
-To run/start a scan:
+To run a scan (RECOMMENDED):
+    Now you can simply run the run_scan script and pass it arguments to set the scan start time and length. For example, to run a scan in 1 minute for 10 seconds:
+        $ $SIM1/scripts/run_scan.sh --startin 60 --scanlength 10
+    To run a scan at a specific time (e.g. May 13 2015 at 12:00 exactly):
+        $ $SIM1/scripts/run_scan.sh --starttime 15:05:13:12:00:00 --scanlength 10
+
+To run/start a scan (MANUALLY):
     After setting your PATH to point to $HASHDIR:
         $ taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread
 		# start
 
 	Now run the set_status script (this will set some necessary status memory key values):
-		$ $SIM1/set_status.sh
+		$ $SIM1/scripts/set_status.sh
 		
 	In another terminal (remember to set the PATH here, too):
 		$ $VEGASDIR/vegasFitsWriter
@@ -60,3 +68,6 @@ To run/start a scan:
 
 Notes:
     Be sure to write your fits files to a local disk
+
+WARNING:
+    The included cleanup script (cleanup.sh) is for the developers' convenience. It is not general purpose, nor intended to be portable. Please do not run it without looking through its contents!
