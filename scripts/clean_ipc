@@ -24,7 +24,7 @@
 #          It will also delte ALL semaphores in /dev/shm owned by the CURRENT USER
 #          PLEASE READ CODE BEFORE USING
 
-python /home/sandboxes/tchamber/paper/clean_ipc.py
+python ./clean_ipc.py
 echo -e "All shared memory segments and semaphore arrays owned by $USER have been removed\n"
 
 find_sem="find /dev/shm -type f -name sem.users_$USER*"

@@ -20,7 +20,7 @@
 # P. O. Box 2
 # Green Bank, WV 24944-0002 USA
 
-AM_CPPFLAGS	 = -I"@HASHPIPE_INCDIR@" -I "/home/gbt1/cfitsio"
+AM_CPPFLAGS     = -I"@HASHPIPE_INCDIR@" -I "/home/gbt1/cfitsio"
 
 # AM_CFLAGS is used for all C compiles
 AM_CFLAGS = -ggdb -fPIC -O3 -Wall  -fno-strict-aliasing 
@@ -29,14 +29,21 @@ AM_CFLAGS = -ggdb -fPIC -O3 -Wall  -fno-strict-aliasing
 
 # Convenience variables to group source files
 gpu_output_databuf = gpu_output_databuf.h \
-		     gpu_output_databuf.c
+             gpu_output_databuf.c
 
 fake_gpu = fake_gpu_thread.c \
-	   fits_writer_thread.c
+           fits_writer_thread.c
 
 # This is the paper_gpu plugin itself
-lib_LTLIBRARIES		= fake_gpu.la
-fake_gpu_la_SOURCES	= $(fake_gpu) $(gpu_output_databuf) fifo.c
-fake_gpu_la_LIBADD	= -lrt -lcfitsio
-fake_gpu_la_LDFLAGS 	= -avoid-version -module -shared -export-dynamic
-fake_gpu_la_LDFLAGS 	+= -L"@HASHPIPE_LIBDIR@" -Wl,-rpath,"@HASHPIPE_LIBDIR@"
+lib_LTLIBRARIES        = fake_gpu.la
+fake_gpu_la_SOURCES    = $(fake_gpu) $(gpu_output_databuf) fifo.c
+fake_gpu_la_LIBADD    = -lrt -lcfitsio
+fake_gpu_la_LDFLAGS     = -avoid-version -module -shared -export-dynamic
+fake_gpu_la_LDFLAGS     += -L"@HASHPIPE_LIBDIR@" -Wl,-rpath,"@HASHPIPE_LIBDIR@"
+
+# Installed scripts
+dist_bin_SCRIPTS = ../../scripts/dmjd.py \
+		   ../../scripts/run_scan \
+		   ../../scripts/clean_ipc \
+		   ../../scripts/clean_ipc.py \
+		   ../../scripts/clean_sim

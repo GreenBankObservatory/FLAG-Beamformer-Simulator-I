@@ -1,9 +1,0 @@
-hashpipe_check_status -k DATADIR -s '/tmp/tchamber/sim1fits'
-hashpipe_check_status -k NUMPHASES -i 1
-hashpipe_check_status -k NUMPHASE -i 1
-hashpipe_check_status -k NUMCHAN -i 1
-hashpipe_check_status -k NUMCHANS -i 1
-hashpipe_check_status -k SCANLEN -i 5
-hashpipe_check_status -k NSUBBAND -i 1
-hashpipe_check_status -k NUMSTOKE -i 1
-

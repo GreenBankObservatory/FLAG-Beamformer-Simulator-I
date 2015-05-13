@@ -28,9 +28,18 @@ pkill ()
     kill -9 $(pgrep $1)
 }
 
-pkill hashpipe
-pkill vegasFitsWriter
-clean_ipc
+if [ "$HOSTNAME" = "west" ]; then
+    pkill hashpipe
+    pkill vegasFitsWriter
+    clean_ipc
 
-cat /dev/null > /tmp/fake_gpu_control
-cat /dev/null > /tmp/vegas_fits_control
+    cat /dev/null > /tmp/fake_gpu_control
+    cat /dev/null > /tmp/vegas_fits_control
+
+    rm /tmp/tchamber/sim1fits/JUNK/VEGAS/*.fits
+else
+    echo "Invalid host: $HOSTNAME"
+fi
+
+
+
