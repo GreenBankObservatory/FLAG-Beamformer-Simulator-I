@@ -154,7 +154,7 @@ static void *run(hashpipe_thread_args_t * args)
 //             // TODO: Verify that my changes to hputr8 were necessary/did not break anything
 //             hputr8(st.buf, "STRTDMJD", start_time_dmjd);
 //             hashpipe_status_unlock_safe(&st);
-    
+
             hashpipe_status_lock_safe(&st);
             // ...find out how long we should scan
             hgeti4(st.buf, "SCANLEN", &requested_scan_length);
