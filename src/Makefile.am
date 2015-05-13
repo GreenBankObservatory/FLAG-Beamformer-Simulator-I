@@ -46,4 +46,5 @@ dist_bin_SCRIPTS = ../../scripts/dmjd.py \
 		   ../../scripts/run_scan \
 		   ../../scripts/clean_ipc \
 		   ../../scripts/clean_ipc.py \
-		   ../../scripts/clean_sim
+		   ../../scripts/clean_sim \
+		   ../../scripts/set_status

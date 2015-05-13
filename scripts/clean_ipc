@@ -24,36 +24,39 @@
 #          It will also delte ALL semaphores in /dev/shm owned by the CURRENT USER
 #          PLEASE READ CODE BEFORE USING
 
-python ./clean_ipc.py
-echo -e "All shared memory segments and semaphore arrays owned by $USER have been removed\n"
+if [ "$HOSTNAME" = "west" ]; then
+    python $(dirname ${0})/clean_ipc.py
+    echo -e "All shared memory segments and semaphore arrays owned by $USER have been removed\n"
 
-find_sem="find /dev/shm -type f -name sem.users_$USER*"
-# Count the number of sem locks owned by the current user
-count="$($find_sem | wc -l)"
-# echo "count: ${count}"
+    find_sem="find /dev/shm -type f -name sem.users_$USER*"
+    # Count the number of sem locks owned by the current user
+    count="$($find_sem | wc -l)"
 
-if [ "${count}" != "0" ]; then
-	if [ "$HOSTNAME" = "west" ]; then
-		# echo "Would you like to delete your sem locks?"
-		$find_sem
+    if [ "${count}" != "0" ]; then
+    # 	if [ "$HOSTNAME" = "west" ]; then
+            # echo "Would you like to delete your sem locks?"
+            $find_sem
 
-		# echo -e "\nContinue? 'y' for yes, anything else for no"
-		# read response
-		# if [ $response = "y" ]; then
-			# I think this is safer than removing all the files owned by the current user
-			rm /dev/shm/sem.users_$USER*
-		# fi
-	else
-		echo "Invalid host: $HOSTNAME"
-	fi
+            # echo -e "\nContinue? 'y' for yes, anything else for no"
+            # read response
+            # if [ $response = "y" ]; then
+                # I think this is safer than removing all the files owned by the current user
+                rm /dev/shm/sem.users_$USER*
+            # fi
+    # 	else
+    # 		echo "Invalid host: $HOSTNAME. Cannot clean sem locks"
+    # 	fi
+    else
+        echo "No sem locks to remove"
+    fi
+
+    echo -e "\nResults:"
+    echo "---------------------------------------------------------------------------------------------------"
+    echo "IPC Status:"
+    ipcs
+    echo "Contents of: /dev/shm on $HOSTNAME"
+    ls -l /dev/shm
+    echo "---------------------------------------------------------------------------------------------------"
 else
-	echo "No sem locks to remove"
+    echo "Invalid host: $HOSTNAME"
 fi
-
-echo -e "\nResults:"
-echo "---------------------------------------------------------------------------------------------------"
-echo "IPC Status:"
-ipcs
-echo "Contents of: /dev/shm on $HOSTNAME"
-ls -l /dev/shm
-echo "---------------------------------------------------------------------------------------------------"

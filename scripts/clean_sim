@@ -36,7 +36,9 @@ if [ "$HOSTNAME" = "west" ]; then
     cat /dev/null > /tmp/fake_gpu_control
     cat /dev/null > /tmp/vegas_fits_control
 
-    rm /tmp/tchamber/sim1fits/JUNK/VEGAS/*.fits
+    if [ -e /tmp/tchamber/sim1fits/JUNK/VEGAS/*.fits ]; then
+        rm /tmp/tchamber/sim1fits/JUNK/VEGAS/*.fits
+    fi
 else
     echo "Invalid host: $HOSTNAME"
 fi
