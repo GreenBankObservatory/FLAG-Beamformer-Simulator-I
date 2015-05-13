@@ -39,7 +39,7 @@ if [ "$HOSTNAME" = "west" ]; then
 
             # echo -e "\nContinue? 'y' for yes, anything else for no"
             # read response
-            # if [ $response = "y" ]; then
+            # if [ "$response" = "y" ]; then
                 # I think this is safer than removing all the files owned by the current user
                 rm /dev/shm/sem.users_$USER*
             # fi

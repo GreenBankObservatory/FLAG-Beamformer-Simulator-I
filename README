@@ -69,5 +69,12 @@ To run/start a scan (MANUALLY):
 Notes:
     Be sure to write your fits files to a local disk
 
+    This plugin currently requires that hashpipe be modified slightly.
+    In hput.c:
+        hputr8():
+            sprintf (value, "%g", dval);
+            // must be changed to
+            sprintf (value, "%f", dval);
+
 WARNING:
     The included cleanup script (cleanup.sh) is for the developers' convenience. It is not general purpose, nor intended to be portable. Please do not run it without looking through its contents!
