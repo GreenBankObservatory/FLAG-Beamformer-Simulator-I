@@ -20,42 +20,40 @@
 # P. O. Box 2
 # Green Bank, WV 24944-0002 USA
 
-wait()
-{
-    echo "> Waiting to continue"
-    read
-}
-
 # Runs dmjd script to set up start times; passes all our arguments to it
+
+echo "> Checking to see if hashpipe and vegasFitsWriter are running"
+
+do_exit=0
+
+pgrep -u $USER hashpipe
+if [ $? -eq 1 ]; then
+    echo ">   ERROR: hashpipe is not running for the current user"
+    do_exit=1
+fi
+
+pgrep -u $USER vegasFitsWriter
+if [ $? -eq 1 ]; then
+    echo ">   ERROR: vegasFitsWriter is not running for the current user"
+    do_exit=1
+fi
+
+if [ "$do_exit" -eq 1 ]; then
+    echo "> Exiting..."
+    exit 1
+fi
+
 echo "> Setting start time related status keys"
-python $(dirname ${0})/dmjd.py "$@"
-
-# echo "> Enter a command to send to the control FIFOs:"
-
-# echo "Resetting control FIFOs"
-# cat /dev/null > /tmp/fake_gpu_control
-# cat /dev/null > /tmp/vegas_fits_control
-
+if [ -e $(dirname ${0})/dmjd.py ]; then
+    python $(dirname ${0})/dmjd.py "$@"
+else
+    echo ">   ERROR: dmjd.py not found. It should be in the same directory as this script"
+fi
 
 cmd="START"
-echo "Starting the scan"
-echo "> Sending the command \"$cmd\" to fake_gpu"
-echo "$cmd" >> /tmp/fake_gpu_control
+echo "> Starting the scan"
+echo ">   Sending the command \"$cmd\" to fake_gpu"
+echo "$cmd" >> /tmp/tchamber/fake_gpu_control
 
-echo "> Sending the command \"$cmd\" to vegasFitsWriter"
-echo "$cmd" >> /tmp/vegas_fits_control2
-
-# response=""
-# while [ "$response" != "q" ]; do
-#     printf "# "
-#     read response
-#
-#     echo "> Sending the command \"$response\" to fake_gpu"
-#     echo "$response" > /tmp/fake_gpu_control
-#
-#     echo "> Sending the command \"$response\" to vegasFitsWriter"
-#     echo "$response" > /tmp/vegas_fits_control
-#
-#     cat /tmp/fake_gpu_control
-#     cat /tmp/vegas_fits_control
-# done
+echo ">   Sending the command \"$cmd\" to vegasFitsWriter"
+echo "$cmd" >> /tmp/tchamber/vegas_fits_control

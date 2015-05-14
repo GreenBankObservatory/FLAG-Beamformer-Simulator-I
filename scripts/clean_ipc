@@ -26,7 +26,7 @@
 
 if [ "$HOSTNAME" = "west" ]; then
     python $(dirname ${0})/clean_ipc.py
-    echo -e "All shared memory segments and semaphore arrays owned by $USER have been removed\n"
+    echo -e "> All shared memory segments and semaphore arrays owned by $USER have been removed\n"
 
     find_sem="find /dev/shm -type f -name sem.users_$USER*"
     # Count the number of sem locks owned by the current user
@@ -47,16 +47,17 @@ if [ "$HOSTNAME" = "west" ]; then
     # 		echo "Invalid host: $HOSTNAME. Cannot clean sem locks"
     # 	fi
     else
-        echo "No sem locks to remove"
+        echo "> No sem locks to remove"
     fi
 
-    echo -e "\nResults:"
-    echo "---------------------------------------------------------------------------------------------------"
-    echo "IPC Status:"
+    echo -e "\n> Results:"
+    echo "> ---------------------------------------------------------------------------------------------------"
+    echo "> IPC Status:"
     ipcs
-    echo "Contents of: /dev/shm on $HOSTNAME"
+    echo "> ---------------------------------------------------------------------------------------------------"
+    echo "> Contents of: /dev/shm on $HOSTNAME"
     ls -l /dev/shm
-    echo "---------------------------------------------------------------------------------------------------"
+    echo "> ---------------------------------------------------------------------------------------------------"
 else
-    echo "Invalid host: $HOSTNAME"
+    echo "> Invalid host: $HOSTNAME"
 fi

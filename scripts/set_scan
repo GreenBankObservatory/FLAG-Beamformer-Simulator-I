@@ -20,62 +20,66 @@
 # P. O. Box 2
 # Green Bank, WV 24944-0002 USA
 
-wait()
-{
-    echo "> Waiting to continue"
-    read
-}
-
-echo "Resetting control FIFOs"
-cat /dev/null > /tmp/fake_gpu_control
-cat /dev/null > /tmp/vegas_fits_control2
+echo "> Resetting control FIFOs"
+cat /dev/null > /tmp/tchamber/fake_gpu_control
+cat /dev/null > /tmp/tchamber/vegas_fits_control
 
 # Run the fake_gpu
 echo "> Starting the fake_gpu hashpipe plugin"
 taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread &
 hash_pid=$!
-echo "> The PID of the hashpipe instance running fake_gpu is: ${hash_pid}"
-
-# wait
+echo ">   The PID of the hashpipe instance running fake_gpu is: ${hash_pid}"
 
 # Set status memory keys
 echo "> Setting status keys required for vegasFitsWriter"
-$(dirname ${0})/set_status
+
+# This looks in the same directory as this script for set_status
+if [ -e "$(dirname ${0})/set_status" ]; then
+    $(dirname ${0})/set_status
+else
+    echo ">   ERROR: set_status not found. It should be in the same directory as this script."
+    exit
+fi
 
 #Run the fits writer
 echo "> Running fits writer"
-/home/sandboxes/tchamber/vegas_devel3/vegas_devel/src/dibas_fits_writer/vegasFitsWriter &
+# /home/sandboxes/tchamber/vegas_devel3/vegas_devel/src/dibas_fits_writer/vegasFitsWriter &
+/home/sandboxes/tchamber/bf_fits/beamformer_devel/src/dibas_fits_writer/vegasFitsWriter &
 vegas_pid=$!
-echo "> The PID of the vegasFitsWriter is: ${vegas_pid}"
+echo ">   The PID of the vegasFitsWriter is: ${vegas_pid}"
 
+sleep .1
+echo -e "\n> READY TO START SCANNING!\n"
 
-echo "> ---------------PRESS ANY KEY TO QUIT---------------"
-wait
-echo "> ---------------PRESS ANY KEY TO QUIT---------------"
-wait
+# ${response,,} makes response lowercase
+while [ "${response,,}" != "quit" -a "${response,,}" != "q" ]; do
+    echo "> Enter \"Q[UIT]\" to quit!"
+    printf "# "
+    read response
+#     echo ${response,,}
+done
 
+# We're done now; clean up
 echo "> Killing fake_gpu (PID ${hash_pid})"
 kill ${hash_pid}
 
-if [ ${hash_pid} ]
-then
-  echo "> fake_gpu has exited cleanly"
+if [ ${hash_pid} ]; then
+    echo ">   fake_gpu has exited cleanly"
 else
-    echo "> fake_gpu has failed to exit cleanly. SIGKILL? \"y\" for yes"
+    echo ">   fake_gpu has failed to exit cleanly. SIGKILL? \"y\" for yes"
     read res
     if [ ${res} = "y" ]; then
         kill -9 $(hash_pid)
     fi
 fi
 
-echo "QUIT" >> /tmp/vegas_fits_control2
+echo "QUIT" >> /tmp/tchamber/vegas_fits_control
 echo "> vegasFitsWriter should have exited cleanly"
 
-if [ ${vegas_pid} ]
-then
-  echo "> vegasFitsWriter has exited cleanly"
+if [ ${vegas_pid} ]; then
+    echo ">   vegasFitsWriter has exited cleanly"
 else
-    echo "> vegasFitsWriter has failed to exit cleanly. SIGKILL? \"y\" for yes"
+    echo ">   vegasFitsWriter has failed to exit cleanly. SIGKILL? \"y\" for yes"
     read res
     if [ ${res} = "y" ]; then
         kill -9 ${vegas_pid}

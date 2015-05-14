@@ -56,7 +56,7 @@ double get_curr_time_dmjd();
 static int init(struct hashpipe_thread_args *args)
 {
     srand(time(NULL));
-    if (open_fifo("/tmp/fake_gpu_control") == -1)
+    if (open_fifo("/tmp/tchamber/fake_gpu_control") == -1)
         return -1;
 
     hashpipe_status_t st = args->st;
@@ -141,9 +141,13 @@ static void *run(hashpipe_thread_args_t * args)
             hashpipe_status_lock_safe(&st);
             hgets(st.buf, "SCANSTAT", SCAN_STATUS_LENGTH, scan_status);
             hashpipe_status_unlock_safe(&st);
-            if (strcmp(scan_status, "scanning") == 0)
+            // If we are either scanning or committed to a scan, continue with loop
+            if (strcmp(scan_status, "scanning") == 0 || strcmp(scan_status, "committed") == 0)
             {
-                fprintf(stderr, "We are already in a scan\n");
+                if (strcmp(scan_status, "scanning") == 0)
+                    fprintf(stderr, "We are already in a scan\n");
+                if (strcmp(scan_status, "committed") == 0)
+                    fprintf(stderr, "We are already committed to a scan\n");
                 continue;
             }
 
@@ -220,8 +224,8 @@ static void *run(hashpipe_thread_args_t * args)
             {
                 fprintf(stderr, "Quitting.\n");
                 // TODO: Why doesn't this work?
-                pthread_exit(NULL);
-                break;
+                pthread_exit(0);
+//                 break;
 //                 exit(EXIT_SUCCESS);
             }
         }

@@ -31,29 +31,29 @@
 
 const int MAX_CMD_LEN = 64;
 
-int command_fifo = -1;
+int fifo_fd = -1;
 
 int open_fifo(char *fifo_loc)
 {
-	command_fifo = open(fifo_loc, O_RDONLY | O_NONBLOCK);
-	if (command_fifo<0)
+	fifo_fd = open(fifo_loc, O_RDONLY | O_NONBLOCK);
+	if (fifo_fd<0)
 	{
 		fprintf(stderr, "vegas_fits_writer: Error opening control fifo %s\n", fifo_loc);
 		perror("open");
 // 		exit(1);
 	}
 
-	return command_fifo;
+	return fifo_fd;
 }
 
 cmd_t check_cmd()
 {
 	char cmd[MAX_CMD_LEN];
 
-// 	fprintf(stderr, "command_fifo: %d\n", command_fifo);
+// 	fprintf(stderr, "fifo_fd: %d\n", fifo_fd);
 
 	struct pollfd pfd[2];
-        pfd[1].fd = command_fifo;
+        pfd[1].fd = fifo_fd;
         pfd[1].events = POLLIN;
         pfd[0].fd = fileno(stdin);
         pfd[0].events = POLLIN;
