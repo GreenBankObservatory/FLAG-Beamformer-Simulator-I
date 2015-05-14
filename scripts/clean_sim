@@ -36,7 +36,7 @@ if [ "$HOSTNAME" = "west" ]; then
 
     echo "Resetting control FIFOs"
     cat /dev/null > /tmp/fake_gpu_control
-    cat /dev/null > /tmp/vegas_fits_control
+    cat /dev/null > /tmp/vegas_fits_control2
 
     if [ -e "/tmp/tchamber/sim1fits/JUNK/VEGAS/*.fits" ]; then
         rm /tmp/tchamber/sim1fits/JUNK/VEGAS/*.fits

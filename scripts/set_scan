@@ -26,6 +26,10 @@ wait()
     read
 }
 
+echo "Resetting control FIFOs"
+cat /dev/null > /tmp/fake_gpu_control
+cat /dev/null > /tmp/vegas_fits_control2
+
 # Run the fake_gpu
 echo "> Starting the fake_gpu hashpipe plugin"
 taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread &
@@ -64,7 +68,7 @@ else
     fi
 fi
 
-echo "QUIT" > /tmp/vegas_fits_control
+echo "QUIT" >> /tmp/vegas_fits_control2
 echo "> vegasFitsWriter should have exited cleanly"
 
 if [ ${vegas_pid} ]

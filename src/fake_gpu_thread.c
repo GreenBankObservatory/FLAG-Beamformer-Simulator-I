@@ -34,6 +34,7 @@
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #include "hashpipe.h"
 #include "gpu_output_databuf.h"
@@ -117,6 +118,9 @@ static void *run(hashpipe_thread_args_t * args)
 
     int test = 0;
 
+    // FIFO thingy
+//     struct pollfd pfd[2];
+
     while (run_threads())
     {
         clock_gettime(CLOCK_MONOTONIC, &loop_start);
@@ -128,8 +132,8 @@ static void *run(hashpipe_thread_args_t * args)
 
         // spin until we receive a START from the user
         cmd = check_cmd();
-        sleep(1);
-        fprintf(stderr, "cmd: %d\n", cmd);
+//         sleep(1);
+//         fprintf(stderr, "cmd: %d\n", cmd);
         if (cmd == START)
         {
             fprintf(stderr, "START received!\n");

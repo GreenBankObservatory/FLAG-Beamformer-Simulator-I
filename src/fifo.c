@@ -51,7 +51,7 @@ cmd_t check_cmd()
 	char cmd[MAX_CMD_LEN];
 
 // 	fprintf(stderr, "command_fifo: %d\n", command_fifo);
-	
+
 	struct pollfd pfd[2];
         pfd[1].fd = command_fifo;
         pfd[1].events = POLLIN;
@@ -146,5 +146,5 @@ cmd_t check_cmd()
             return INVALID;
         }
 
-        
+
 }
