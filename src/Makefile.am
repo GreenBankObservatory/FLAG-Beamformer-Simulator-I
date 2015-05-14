@@ -23,7 +23,7 @@
 AM_CPPFLAGS     = -I"@HASHPIPE_INCDIR@" -I "/home/gbt1/cfitsio"
 
 # AM_CFLAGS is used for all C compiles
-AM_CFLAGS = -ggdb -fPIC -O3 -Wall  -fno-strict-aliasing 
+AM_CFLAGS = -ggdb -fPIC -O3 -Wall  -fno-strict-aliasing
 # -mavx <-- evil. won't let me write floats to shm
 # -Werror <-- treats warnings as errors :(
 
@@ -47,4 +47,5 @@ dist_bin_SCRIPTS = ../../scripts/dmjd.py \
 		   ../../scripts/clean_ipc \
 		   ../../scripts/clean_ipc.py \
 		   ../../scripts/clean_sim \
+		   ../../scripts/set_scan \
 		   ../../scripts/set_status

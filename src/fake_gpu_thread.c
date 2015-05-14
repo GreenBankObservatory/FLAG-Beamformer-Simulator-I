@@ -57,7 +57,7 @@ static int init(struct hashpipe_thread_args *args)
     srand(time(NULL));
     if (open_fifo("/tmp/fake_gpu_control") == -1)
         return -1;
-    
+
     hashpipe_status_t st = args->st;
 
     hashpipe_status_lock_safe(&st);
@@ -67,6 +67,7 @@ static int init(struct hashpipe_thread_args *args)
     hputi4(st.buf, "SCANLEN", 2);
     // Set the scan to off by default
     hputs(st.buf, "SCANSTAT", "off");
+    hputr8(st.buf, "STRTDMJD", -1.0);
     hashpipe_status_unlock_safe(&st);
 
     return 0;
@@ -107,17 +108,19 @@ static void *run(hashpipe_thread_args_t * args)
     timespec scan_start_time, scan_stop_time;
 
     int cmd = INVALID;
-    
+
     timeval curr_timeval;
 //     timeval start_timeval;
 
     double curr_time_dmjd = -1;
     double start_time_dmjd = -1;
 
+    int test = 0;
+
     while (run_threads())
     {
         clock_gettime(CLOCK_MONOTONIC, &loop_start);
-        
+
         hashpipe_status_lock_safe(&st);
         hputs(st.buf, status_key, "waiting");
         hgets(st.buf, "SCANSTAT", SCAN_STATUS_LENGTH, scan_status);
@@ -125,10 +128,12 @@ static void *run(hashpipe_thread_args_t * args)
 
         // spin until we receive a START from the user
         cmd = check_cmd();
+        sleep(1);
+        fprintf(stderr, "cmd: %d\n", cmd);
         if (cmd == START)
         {
             fprintf(stderr, "START received!\n");
-            
+
             hashpipe_status_lock_safe(&st);
             hgets(st.buf, "SCANSTAT", SCAN_STATUS_LENGTH, scan_status);
             hashpipe_status_unlock_safe(&st);
@@ -158,18 +163,20 @@ static void *run(hashpipe_thread_args_t * args)
             hashpipe_status_lock_safe(&st);
             // ...find out how long we should scan
             hgeti4(st.buf, "SCANLEN", &requested_scan_length);
-            
-            if (!hgetr8(st.buf, "STRTDMJD", &start_time_dmjd))
-            {
-                fprintf(stderr, "STRTDMJD keyword is not set!\n");
-                continue;
-            }
-                
+            hgetr8(st.buf, "STRTDMJD", &start_time_dmjd);
             hputs(st.buf, "SCANSTAT", "committed");
             hashpipe_status_unlock_safe(&st);
 
+
+            if (start_time_dmjd < 0)
+            {
+                fprintf(stderr, "STRTDMJD is set to a negative value!\n");
+                continue; //why is this starting still?
+            }
+
+            fprintf(stderr, "Test: %d\n", test++);
 //             fprintf(stderr, "SRTDMJD: %f\n", start_time_dmjd
-            
+
             // calculate number of blocks to write based on SCANLEN
             num_blocks_to_write = (PACKET_RATE * requested_scan_length) / N;
             fprintf(stderr, "Number of blocks to write: %d\n", num_blocks_to_write);
@@ -324,7 +331,7 @@ static void *run(hashpipe_thread_args_t * args)
         /* Will exit if thread has been cancelled */
         pthread_testcancel();
     }
-    
+
     return THREAD_OK;
 }
 

@@ -26,74 +26,36 @@ wait()
     read
 }
 
-# echo "> Cleaning up..."
-# /home/sandboxes/tchamber/paper/simulator_1/scripts/cleanup.sh
-
-
-# Run the fake_gpu
-echo "> Starting the fake_gpu hashpipe plugin"
-taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread &
-hash_pid=$!
-echo "The PID of the hashpipe instance running fake_gpu is: ${hash_pid}"
-
-# wait
-
-# Set status memory keys
-echo "> Setting status keys required for vegasFitsWriter"
-$(dirname ${0})/set_status
-
 # Runs dmjd script to set up start times; passes all our arguments to it
 echo "> Setting start time related status keys"
 python $(dirname ${0})/dmjd.py "$@"
 
-# wait
+echo "> Enter a command to send to the control FIFOs:"
 
-#Run the fits writer
-echo "> Running fits writer"
-/home/sandboxes/tchamber/vegas_devel3/vegas_devel/src/dibas_fits_writer/vegasFitsWriter &
-vegas_pid=$!
-echo "The PID of the vegasFitsWriter is: ${vegas_pid}"
-
-# wait
-
-# Start
-echo "> Starting fake_gpu"
-echo "START" > /tmp/fake_gpu_control
-
-# wait
-
-echo "> Starting vegas fits io"
-echo "START" > /tmp/vegas_fits_control
-
-echo "> ---------------PRESS ANY KEY TO QUIT---------------"
-wait
-
-echo "> Killing PID ${hash_pid}"
-kill ${hash_pid}
+echo "Resetting control FIFOs"
+cat /dev/null > /tmp/fake_gpu_control
+cat /dev/null > /tmp/vegas_fits_control
 
 
-if [ ${hash_pid} ]
-then
-  echo "> fake_gpu has exited cleanly"
-else
-    echo "> fake_gpu has failed to exit cleanly. SIGKILL? \"y\" for yes"
-    read res
-    if [ ${res} = "y" ]; then
-        kill -9 $(hash_pid)
-    fi
-fi
+cmd="START"
+echo "Starting the scan"
+echo "> Sending the command \"$cmd\" to fake_gpu"
+echo "$cmd" > /tmp/fake_gpu_control
 
-echo "QUIT" > /tmp/vegas_fits_control
-echo "> vegasFitsWriter should have exited cleanly"
+echo "> Sending the command \"$cmd\" to vegasFitsWriter"
+echo "$cmd" > /tmp/vegas_fits_control
 
-if [ ${vegas_pid} ]
-then
-  echo "> vegasFitsWriter has exited cleanly"
-else
-    echo "> vegasFitsWriter has failed to exit cleanly. SIGKILL? \"y\" for yes"
-    read res
-    if [ ${res} = "y" ]; then
-        kill -9 ${vegas_pid}
-    fi
-fi
-
+# response=""
+# while [ "$response" != "q" ]; do
+#     printf "# "
+#     read response
+#
+#     echo "> Sending the command \"$response\" to fake_gpu"
+#     echo "$response" > /tmp/fake_gpu_control
+#
+#     echo "> Sending the command \"$response\" to vegasFitsWriter"
+#     echo "$response" > /tmp/vegas_fits_control
+#
+#     cat /tmp/fake_gpu_control
+#     cat /tmp/vegas_fits_control
+# done

@@ -22,22 +22,26 @@
 
 # WARNING: This script will ruthlessly murder any process whose name matches the strings "hashpipe" or "vegasFitsWriter"
 
-pkill ()
-{
-    echo "Killing process $1 with pid $(pgrep $1)";
-    kill -9 $(pgrep $1)
-}
+# pkill ()
+# {
+#     echo "Killing process $1 with pid $(pgrep $1)";
+#     kill -9 $(pgrep $1)
+# }
 
 if [ "$HOSTNAME" = "west" ]; then
-    pkill hashpipe
-    pkill vegasFitsWriter
+    pkill "hashpipe"
+    pkill "vegasFitsWriter"
+    echo ""
     clean_ipc
 
+    echo "Resetting control FIFOs"
     cat /dev/null > /tmp/fake_gpu_control
     cat /dev/null > /tmp/vegas_fits_control
 
-    if [ -e /tmp/tchamber/sim1fits/JUNK/VEGAS/*.fits ]; then
+    if [ -e "/tmp/tchamber/sim1fits/JUNK/VEGAS/*.fits" ]; then
         rm /tmp/tchamber/sim1fits/JUNK/VEGAS/*.fits
+    else
+        echo "No *.fits files to remove"
     fi
 else
     echo "Invalid host: $HOSTNAME"
