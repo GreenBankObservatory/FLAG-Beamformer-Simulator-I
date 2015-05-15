@@ -20,6 +20,96 @@
 # P. O. Box 2
 # Green Bank, WV 24944-0002 USA
 
+cleanup()
+{
+    echo "> Killing fake_gpu (PID ${hash_pid})"
+#     kill ${hash_pid}
+
+    echo "> Killing vegasFitsWriter (PID ${vegas_pid})"
+#     echo "QUIT" >> /tmp/tchamber/vegas_fits_control
+
+    # Set the end time to five seconds from now
+    end=$((SECONDS+5))
+    hash_closed=0
+    vegas_closed=0
+    while [ $SECONDS -lt $end ] && [ $hash_closed -eq 0 ] && [ $vegas_closed -eq 0 ]; do
+        kill -0 $hash_pid &> /dev/null
+#         echo $?
+        if [ $? -ne 0 ]; then
+            hash_closed=1
+        fi
+
+        kill -0 $vegas_pid > &/dev/null
+        if [ $? -ne 0 ]; then
+            vegas_closed=1
+        fi
+    done
+
+    if [ ${hash_pid} ]; then
+        echo ">   fake_gpu has exited cleanly"
+    else
+        echo ">   fake_gpu has failed to exit cleanly. SIGKILL? \"y\" for yes"
+        read res
+        if [ ${res} = "y" ]; then
+            kill -9 $(hash_pid)
+        fi
+    fi
+
+
+
+    if [ ${vegas_pid} ]; then
+        echo ">   vegasFitsWriter has exited cleanly"
+    else
+        echo ">   vegasFitsWriter has failed to exit cleanly. SIGKILL? \"y\" for yes"
+        read res
+        if [ ${res} = "y" ]; then
+            kill -9 ${vegas_pid}
+        fi
+    fi
+}
+
+# cleanup()
+# {
+#     echo "> Killing fake_gpu (PID ${hash_pid})"
+#     kill ${hash_pid}
+#
+#     ps -p ${hash_pid} > /dev/null
+#     echo "Does it exist? $?"
+#     if [ $? ]; then
+#         echo ">   fake_gpu has exited cleanly"
+#     else
+#         echo ">   fake_gpu has failed to exit cleanly. SIGKILL? \"y\" for yes"
+#         read res
+#         if [ ${res} = "y" ]; then
+#             kill -9 $(hash_pid)
+#         fi
+#     fi
+#
+#     echo "> Killing vegasFitsWriter (PID ${vegas_pid})"
+#     echo "QUIT" >> /tmp/tchamber/vegas_fits_control
+#
+#     ps -p ${vegas_pid} > /dev/null
+#     echo "Does it exist? $?"
+#     if [ $? ]; then
+#         echo ">   vegasFitsWriter has exited cleanly"
+#     else
+#         echo ">   vegasFitsWriter has failed to exit cleanly. SIGKILL? \"y\" for yes"
+#         read res
+#         if [ ${res} = "y" ]; then
+#             kill -9 ${vegas_pid}
+#         fi
+#     fi
+# }
+
+control_c()
+{
+    echo -e "\n> We're finished; cleaning up..."
+    cleanup
+    exit 130
+}
+
+trap control_c SIGINT
+
 echo "> Resetting control FIFOs"
 cat /dev/null > /tmp/tchamber/fake_gpu_control
 cat /dev/null > /tmp/tchamber/vegas_fits_control
@@ -50,6 +140,7 @@ echo ">   The PID of the vegasFitsWriter is: ${vegas_pid}"
 
 sleep .1
 echo -e "\n> READY TO START SCANNING!\n"
+echo    ">   Use the \"run_scan\" script to run a scan\n"
 
 # ${response,,} makes response lowercase
 while [ "${response,,}" != "quit" -a "${response,,}" != "q" ]; do
@@ -60,28 +151,4 @@ while [ "${response,,}" != "quit" -a "${response,,}" != "q" ]; do
 done
 
 # We're done now; clean up
-echo "> Killing fake_gpu (PID ${hash_pid})"
-kill ${hash_pid}
-
-if [ ${hash_pid} ]; then
-    echo ">   fake_gpu has exited cleanly"
-else
-    echo ">   fake_gpu has failed to exit cleanly. SIGKILL? \"y\" for yes"
-    read res
-    if [ ${res} = "y" ]; then
-        kill -9 $(hash_pid)
-    fi
-fi
-
-echo "QUIT" >> /tmp/tchamber/vegas_fits_control
-echo "> vegasFitsWriter should have exited cleanly"
-
-if [ ${vegas_pid} ]; then
-    echo ">   vegasFitsWriter has exited cleanly"
-else
-    echo ">   vegasFitsWriter has failed to exit cleanly. SIGKILL? \"y\" for yes"
-    read res
-    if [ ${res} = "y" ]; then
-        kill -9 ${vegas_pid}
-    fi
-fi
+cleanup

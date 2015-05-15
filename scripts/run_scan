@@ -26,13 +26,15 @@ echo "> Checking to see if hashpipe and vegasFitsWriter are running"
 
 do_exit=0
 
-pgrep -u $USER hashpipe
+# Make sure there is at least one process named hashpipe being run by the current user
+pgrep -u $USER hashpipe > /dev/null
 if [ $? -eq 1 ]; then
     echo ">   ERROR: hashpipe is not running for the current user"
     do_exit=1
 fi
 
-pgrep -u $USER vegasFitsWriter
+# Make sure there is at least one processe named vegasFitsWriter being run by the current user
+pgrep -u $USER vegasFitsWriter > /dev/null
 if [ $? -eq 1 ]; then
     echo ">   ERROR: vegasFitsWriter is not running for the current user"
     do_exit=1
