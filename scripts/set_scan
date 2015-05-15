@@ -22,94 +22,68 @@
 
 cleanup()
 {
-    echo "> Killing fake_gpu (PID ${hash_pid})"
-    kill ${hash_pid}
+    # Kill processes if they are still running
+    if [ -e /proc/${hash_pid} ]; then
+        echo "> Killing fake_gpu (PID ${hash_pid})"
+        kill ${hash_pid}
+    fi
 
-    echo "> Killing vegasFitsWriter (PID ${vegas_pid})"
-    echo "QUIT" >> /tmp/tchamber/vegas_fits_control
-}
+    if [ -e /proc/${vegas_pid} ]; then
+        echo "> Killing vegasFitsWriter (PID ${vegas_pid})"
+        echo "QUIT" >> /tmp/tchamber/vegas_fits_control
+    fi
 
-# cleanup()
-# {
-#     echo "> Killing fake_gpu (PID ${hash_pid})"
-# #     kill ${hash_pid}
-#
-#     echo "> Killing vegasFitsWriter (PID ${vegas_pid})"
-# #     echo "QUIT" >> /tmp/tchamber/vegas_fits_control
-#
-#     # Set the end time to five seconds from now
-#     end=$((SECONDS+5))
-#     hash_closed=0
-#     vegas_closed=0
-#     while [ $SECONDS -lt $end ] && [ $hash_closed -eq 0 ] && [ $vegas_closed -eq 0 ]; do
+    # They should be closed by now, but let's make sure...
+
+    # Set the end time to five seconds from now
+    end=$((SECONDS+5))
+    hash_closed=0
+    vegas_closed=0
+    # Loop until processes have closed or we have spent 5 seconds waiting
+    while [ $SECONDS -lt $end ] && [ $hash_closed -eq 0 ] && [ $vegas_closed -eq 0 ]; do
+        # TODO: This way should be more portable/better in general; can't get it working. Fix that at some point
 #         kill -0 $hash_pid &> /dev/null
-# #         echo $?
+#         echo $?
 #         if [ $? -ne 0 ]; then
 #             hash_closed=1
 #         fi
-#
-#         kill -0 $vegas_pid > &/dev/null
-#         if [ $? -ne 0 ]; then
-#             vegas_closed=1
-#         fi
-#     done
-#
-#     if [ ${hash_pid} ]; then
-#         echo ">   fake_gpu has exited cleanly"
-#     else
-#         echo ">   fake_gpu has failed to exit cleanly. SIGKILL? \"y\" for yes"
-#         read res
-#         if [ ${res} = "y" ]; then
-#             kill -9 $(hash_pid)
-#         fi
-#     fi
-#
-#
-#
-#     if [ ${vegas_pid} ]; then
-#         echo ">   vegasFitsWriter has exited cleanly"
-#     else
-#         echo ">   vegasFitsWriter has failed to exit cleanly. SIGKILL? \"y\" for yes"
-#         read res
-#         if [ ${res} = "y" ]; then
-#             kill -9 ${vegas_pid}
-#         fi
-#     fi
-# }
 
-# cleanup()
-# {
-#     echo "> Killing fake_gpu (PID ${hash_pid})"
-#     kill ${hash_pid}
-#
-#     ps -p ${hash_pid} > /dev/null
-#     echo "Does it exist? $?"
-#     if [ $? ]; then
-#         echo ">   fake_gpu has exited cleanly"
-#     else
-#         echo ">   fake_gpu has failed to exit cleanly. SIGKILL? \"y\" for yes"
-#         read res
-#         if [ ${res} = "y" ]; then
-#             kill -9 $(hash_pid)
-#         fi
-#     fi
-#
-#     echo "> Killing vegasFitsWriter (PID ${vegas_pid})"
-#     echo "QUIT" >> /tmp/tchamber/vegas_fits_control
-#
-#     ps -p ${vegas_pid} > /dev/null
-#     echo "Does it exist? $?"
-#     if [ $? ]; then
-#         echo ">   vegasFitsWriter has exited cleanly"
-#     else
-#         echo ">   vegasFitsWriter has failed to exit cleanly. SIGKILL? \"y\" for yes"
-#         read res
-#         if [ ${res} = "y" ]; then
-#             kill -9 ${vegas_pid}
-#         fi
-#     fi
-# }
+        if [ -e /proc/${hash_pid} ]; then
+            hash_closed=1
+            echo ">   fake_gpu has exited cleanly"
+        fi
 
+        if [ -e /proc/${vegas_pid} ]; then
+            vegas_closed=1
+            echo ">   vegasFitsWriter has exited cleanly"
+        fi
+    done
+
+    # Now the either hashpipe and vegasFitsWriter are closed or the loop has timed out
+    # In the latter case, we will need to do some more cleanup:
+    if [ $hash_closed -eq 0 ] || [ $vegas_closed -eq 0 ]; then
+        echo "> Timed out waiting for processes to die nicely"
+        # If hashpipe hasn't closed nicely, ask the user if they would like to force close it
+        if [ $hash_closed -eq 0 ]; then
+            echo ">   hashpipe failed to close. SIGKILL? \"y\" for yes"
+            read res
+            if [ ${res,,} = "y" ]; then
+                kill -9 $(hash_pid)
+            fi
+        fi
+
+        # If vegasFitsWriter hasn't closed nicely, ask the user if they would like to force close it
+        if [ $vegas_closed -eq 0 ]; then
+            echo ">   vegasFitsWriter failed to close. SIGKILL? \"y\" for yes"
+            read res
+            if [ ${res,,} = "y" ]; then
+                kill -9 $(vegas_pid)
+            fi
+        fi
+    fi
+}
+
+# What to do when we trap SIGINT
 control_c()
 {
     echo -e "\n> We're finished; cleaning up..."
@@ -117,8 +91,10 @@ control_c()
     exit 130
 }
 
+# Trap control_c to make sure that we can clean up after ourselves
 trap control_c SIGINT
 
+# Write null files to our FIFOs so that they don't have any unexpected commands in them
 echo "> Resetting control FIFOs"
 cat /dev/null > /tmp/tchamber/fake_gpu_control
 cat /dev/null > /tmp/tchamber/vegas_fits_control
@@ -140,7 +116,7 @@ else
     exit
 fi
 
-#Run the fits writer
+# Run the fits writer
 echo "> Running fits writer"
 # /home/sandboxes/tchamber/vegas_devel3/vegas_devel/src/dibas_fits_writer/vegasFitsWriter &
 /home/sandboxes/tchamber/bf_fits/beamformer_devel/src/dibas_fits_writer/vegasFitsWriter &
@@ -148,15 +124,15 @@ vegas_pid=$!
 echo ">   The PID of the vegasFitsWriter is: ${vegas_pid}"
 
 sleep .1
-echo -e "\n> READY TO START SCANNING!\n"
-echo    ">   Use the \"run_scan\" script to run a scan\n"
+echo -e "\n> READY TO START SCANNING!"
+echo -e ">   Use the \"run_scan\" script to run a scan\n"
 
+# Wait for the user to ask us to quit
 # ${response,,} makes response lowercase
 while [ "${response,,}" != "quit" -a "${response,,}" != "q" ]; do
     echo "> Enter \"Q[UIT]\" to quit!"
     printf "# "
     read response
-#     echo ${response,,}
 done
 
 # We're done now; clean up
