@@ -23,50 +23,59 @@
 cleanup()
 {
     echo "> Killing fake_gpu (PID ${hash_pid})"
-#     kill ${hash_pid}
+    kill ${hash_pid}
 
     echo "> Killing vegasFitsWriter (PID ${vegas_pid})"
-#     echo "QUIT" >> /tmp/tchamber/vegas_fits_control
-
-    # Set the end time to five seconds from now
-    end=$((SECONDS+5))
-    hash_closed=0
-    vegas_closed=0
-    while [ $SECONDS -lt $end ] && [ $hash_closed -eq 0 ] && [ $vegas_closed -eq 0 ]; do
-        kill -0 $hash_pid &> /dev/null
-#         echo $?
-        if [ $? -ne 0 ]; then
-            hash_closed=1
-        fi
-
-        kill -0 $vegas_pid > &/dev/null
-        if [ $? -ne 0 ]; then
-            vegas_closed=1
-        fi
-    done
-
-    if [ ${hash_pid} ]; then
-        echo ">   fake_gpu has exited cleanly"
-    else
-        echo ">   fake_gpu has failed to exit cleanly. SIGKILL? \"y\" for yes"
-        read res
-        if [ ${res} = "y" ]; then
-            kill -9 $(hash_pid)
-        fi
-    fi
-
-
-
-    if [ ${vegas_pid} ]; then
-        echo ">   vegasFitsWriter has exited cleanly"
-    else
-        echo ">   vegasFitsWriter has failed to exit cleanly. SIGKILL? \"y\" for yes"
-        read res
-        if [ ${res} = "y" ]; then
-            kill -9 ${vegas_pid}
-        fi
-    fi
+    echo "QUIT" >> /tmp/tchamber/vegas_fits_control
 }
+
+# cleanup()
+# {
+#     echo "> Killing fake_gpu (PID ${hash_pid})"
+# #     kill ${hash_pid}
+#
+#     echo "> Killing vegasFitsWriter (PID ${vegas_pid})"
+# #     echo "QUIT" >> /tmp/tchamber/vegas_fits_control
+#
+#     # Set the end time to five seconds from now
+#     end=$((SECONDS+5))
+#     hash_closed=0
+#     vegas_closed=0
+#     while [ $SECONDS -lt $end ] && [ $hash_closed -eq 0 ] && [ $vegas_closed -eq 0 ]; do
+#         kill -0 $hash_pid &> /dev/null
+# #         echo $?
+#         if [ $? -ne 0 ]; then
+#             hash_closed=1
+#         fi
+#
+#         kill -0 $vegas_pid > &/dev/null
+#         if [ $? -ne 0 ]; then
+#             vegas_closed=1
+#         fi
+#     done
+#
+#     if [ ${hash_pid} ]; then
+#         echo ">   fake_gpu has exited cleanly"
+#     else
+#         echo ">   fake_gpu has failed to exit cleanly. SIGKILL? \"y\" for yes"
+#         read res
+#         if [ ${res} = "y" ]; then
+#             kill -9 $(hash_pid)
+#         fi
+#     fi
+#
+#
+#
+#     if [ ${vegas_pid} ]; then
+#         echo ">   vegasFitsWriter has exited cleanly"
+#     else
+#         echo ">   vegasFitsWriter has failed to exit cleanly. SIGKILL? \"y\" for yes"
+#         read res
+#         if [ ${res} = "y" ]; then
+#             kill -9 ${vegas_pid}
+#         fi
+#     fi
+# }
 
 # cleanup()
 # {
