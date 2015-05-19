@@ -21,8 +21,9 @@
 # Green Bank, WV 24944-0002 USA
 
 # WARNING: This script will delete ALL shared memory segments and semaphore arrays owned by the CURRENT USER.
-#          It will also delte ALL semaphores in /dev/shm owned by the CURRENT USER
+#          It will also delete ALL semaphores in /dev/shm owned by the CURRENT USER
 #          PLEASE READ CODE BEFORE USING
+# NOTE:    This script is hardcoded to only work on the "west" host - you will need to change this
 
 if [ "$HOSTNAME" = "west" ]; then
     python $(dirname ${0})/clean_ipc.py

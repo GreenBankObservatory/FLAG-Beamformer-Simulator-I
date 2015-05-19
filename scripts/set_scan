@@ -67,7 +67,7 @@ cleanup()
         if [ $hash_closed -eq 0 ]; then
             echo ">   hashpipe failed to close. SIGKILL? \"y\" for yes"
             read res
-            if [ ${res,,} = "y" ]; then
+            if [ "${res,,}" = "y" ]; then
                 kill -9 $(hash_pid)
             fi
         fi
@@ -76,7 +76,7 @@ cleanup()
         if [ $vegas_closed -eq 0 ]; then
             echo ">   vegasFitsWriter failed to close. SIGKILL? \"y\" for yes"
             read res
-            if [ ${res,,} = "y" ]; then
+            if [ "${res,,}" = "y" ]; then
                 kill -9 $(vegas_pid)
             fi
         fi
@@ -119,7 +119,11 @@ fi
 # Run the fits writer
 echo "> Running fits writer"
 # /home/sandboxes/tchamber/vegas_devel3/vegas_devel/src/dibas_fits_writer/vegasFitsWriter &
-/home/sandboxes/tchamber/bf_fits/beamformer_devel/src/dibas_fits_writer/vegasFitsWriter &
+# /home/sandboxes/tchamber/bf_fits/beamformer_devel/src/dibas_fits_writer/vegasFitsWriter &
+/home/sandboxes/tchamber/FLAG-Beamformer-Devel/src/dibas_fits_writer/vegasFitsWriter &
+# /home/sandboxes/tchamber/bf_fits/beamformer_devel/src/dibas_fits_writer/vegasFitsWriter &
+
+
 vegas_pid=$!
 echo ">   The PID of the vegasFitsWriter is: ${vegas_pid}"
 

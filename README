@@ -47,10 +47,27 @@ To build:
         $ make install
 
 To run a scan (RECOMMENDED):
-    Now you can simply run the run_scan script and pass it arguments to set the scan start time and length. For example, to run a scan in 1 minute for 10 seconds:
-        $ $SIM1/scripts/run_scan.sh --startin 60 --scanlength 10
-    To run a scan at a specific time (e.g. May 13 2015 at 12:00 exactly):
-        $ $SIM1/scripts/run_scan.sh --starttime 15:05:13:12:00:00 --scanlength 10
+    Scanning currently works through the use of two scripts:
+        set_scan:
+            Opens hashpipe
+            Opens vegasFitsWriter
+            Sets necessary status shared memory keys
+        run_scan:
+            Takes arguments to set the scan length and start time
+            Sends the START command to both control FIFOs
+
+        Examples:
+            To run a scan in 1 minute for 10 seconds:
+                In terminal 'A':
+                    $ $SIM1/scripts/set_scan
+                In terminal 'B':
+                    $ $SIM1/scripts/run_scan --startin 60 --scanlength 10
+
+            To run a scan at a specific time (e.g. May 13 2015 at 12:00 exactly):
+                In terminal 'A':
+                    $ $SIM1/scripts/set_scan
+                In terminal 'B':
+                    $ $SIM1/scripts/run_scan.sh --starttime 15:05:13:12:00:00 --scanlength 10
 
 To run/start a scan (MANUALLY):
     After setting your PATH to point to $HASHDIR:
@@ -59,7 +76,7 @@ To run/start a scan (MANUALLY):
 
 	Now run the set_status script (this will set some necessary status memory key values):
 		$ $SIM1/scripts/set_status.sh
-		
+
 	In another terminal (remember to set the PATH here, too):
 		$ $VEGASDIR/vegasFitsWriter
 		# start
@@ -76,5 +93,7 @@ Notes:
             // must be changed to
             sprintf (value, "%f", dval);
 
-WARNING:
-    The included cleanup script (cleanup.sh) is for the developers' convenience. It is not general purpose, nor intended to be portable. Please do not run it without looking through its contents!
+NOTES ON THE INCLUDED SCRIPTS:
+    The included cleanup scripts (cleanup and clean_sim) are for the developers' convenience. They are not general purpose tools, nor intended to be portable. Please do not run them without looking through their contents!
+
+
