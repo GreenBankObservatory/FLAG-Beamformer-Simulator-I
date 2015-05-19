@@ -96,8 +96,8 @@ trap control_c SIGINT
 
 # Write null files to our FIFOs so that they don't have any unexpected commands in them
 echo "> Resetting control FIFOs"
-cat /dev/null > /tmp/tchamber/fake_gpu_control
-cat /dev/null > /tmp/tchamber/vegas_fits_control
+cat /dev/null > /tmp/fake_gpu_control
+cat /dev/null > /tmp/vegas_fits_control
 
 # Run the fake_gpu
 echo "> Starting the fake_gpu hashpipe plugin"
