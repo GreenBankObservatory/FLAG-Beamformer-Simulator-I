@@ -110,6 +110,7 @@ static void *run(hashpipe_thread_args_t * args)
 
     timespec loop_start, loop_end;
     timespec scan_start_time, scan_stop_time;
+    timespec shm_start, shm_stop;
 
     int cmd = INVALID;
 
@@ -119,7 +120,9 @@ static void *run(hashpipe_thread_args_t * args)
     double curr_time_dmjd = -1;
     double start_time_dmjd = -1;
 
-    int test = 0;
+//     int test = 0;
+//     int blocks_written = 0;
+    uint64_t elapsed_ns = 0;
 
     // FIFO thingy
 //     struct pollfd pfd[2];
@@ -185,7 +188,7 @@ static void *run(hashpipe_thread_args_t * args)
                 continue; //why is this starting still?
             }
 
-            fprintf(stderr, "Test: %d\n", test++);
+//             fprintf(stderr, "Test: %d\n", test++);
 //             fprintf(stderr, "SRTDMJD: %f\n", start_time_dmjd
 
             // calculate number of blocks to write based on SCANLEN
@@ -282,7 +285,11 @@ static void *run(hashpipe_thread_args_t * args)
             db->block[block_idx].header.mcnt = mcnt;
             mcnt += N;
 
+            fprintf(stderr, "\tCurrent block is: %d\n", current_block);
             fprintf(stderr, "\nWriting to block %d on mcnt %d\n", block_idx, db->block[block_idx].header.mcnt);
+
+            // Benchmark our write to shared memory
+            clock_gettime(CLOCK_MONOTONIC, &shm_start);
 
             // Write data to shared memory
             int i;
@@ -303,13 +310,22 @@ static void *run(hashpipe_thread_args_t * args)
                 }
             }
 
-            // Mark block as full
-            gpu_output_databuf_set_filled(db, block_idx);
+            clock_gettime(CLOCK_MONOTONIC, &shm_stop);
 
             // Setup for next block
             block_idx = (block_idx + 1) % NUM_BLOCKS;
             current_block++;
-            fprintf(stderr, "\tCurrent block is: %d\n", current_block);
+
+            // Calculate time taken to write to shm
+            fprintf(stderr, "-----\n");
+            elapsed_ns = ELAPSED_NS(shm_start, shm_stop);
+            double average_ns = elapsed_ns / current_block;
+            fprintf(stderr, "The write to shared memory for %d elements took %ld ns\n", BIN_SIZE, ELAPSED_NS(shm_start, shm_stop));
+            fprintf(stderr, "The running average after %d writes is %f ns\n", current_block, average_ns);
+            fprintf(stderr, "-----\n");
+
+            // Mark block as full
+            gpu_output_databuf_set_filled(db, block_idx);
 
             clock_gettime(CLOCK_MONOTONIC, &loop_end);
 
