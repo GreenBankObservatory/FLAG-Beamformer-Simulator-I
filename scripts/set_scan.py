@@ -31,7 +31,7 @@ import signal
 import sys
 
 def cleanup(signal, frame):
-    print "> Killing fake_gpu and vegasFitsWriter"
+    print "> Killing fake_gpu and vegasFitsWriter..."
     hashpipe.terminate()
 
     with open(vegas_fifo, "a") as vegas_fifo_file:
@@ -42,7 +42,7 @@ def cleanup(signal, frame):
 signal.signal(signal.SIGINT, cleanup)
 
 # Clear out FIFOs
-print "> Clearing control FIFOs"
+print "Clearing control FIFOs"
 hash_fifo = "/tmp/fake_gpu_control"
 vegas_fifo = "/tmp/vegas_fits_control"
 try:
@@ -77,10 +77,8 @@ print "> Use the \"run_scan\" script to run a scan\n"
 # This is just to make the output prettier (come out in order)
 sleep(.1)
 
-# Wait for the user to tell us to quit
 res = ""
 while (res.lower() != "q" and res.lower() != "quit"):
     res = raw_input("\n> Enter \"Q[UIT]\" to quit!\n# ")
 
-# If we've gotten this far then the user wants to quit
 cleanup()
