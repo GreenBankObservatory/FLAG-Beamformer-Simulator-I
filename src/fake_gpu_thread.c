@@ -56,8 +56,12 @@ double get_curr_time_dmjd();
 static int init(struct hashpipe_thread_args *args)
 {
     srand(time(NULL));
-    if (open_fifo("/tmp/tchamber/fake_gpu_control") == -1)
+
+    char *fifo_loc = "/tmp/tchamber/fake_gpu_control";
+    if (open_fifo(fifo_loc) == -1)
         return -1;
+
+    fprintf(stderr, "Using fake_gpu control FIFO: %s\n", fifo_loc);
 
     hashpipe_status_t st = args->st;
 
@@ -309,20 +313,20 @@ static void *run(hashpipe_thread_args_t * args)
 
             clock_gettime(CLOCK_MONOTONIC, &shm_stop);
 
+            // Mark block as full
+            gpu_output_databuf_set_filled(db, block_idx);
+
             // Setup for next block
             block_idx = (block_idx + 1) % NUM_BLOCKS;
             current_block++;
 
             // Calculate time taken to write to shm
             fprintf(stderr, "-----\n");
-            elapsed_ns = ELAPSED_NS(shm_start, shm_stop);
+            elapsed_ns += ELAPSED_NS(shm_start, shm_stop);
             double average_ns = elapsed_ns / current_block;
             fprintf(stderr, "The write to shared memory for %d elements took %ld ns\n", BIN_SIZE, ELAPSED_NS(shm_start, shm_stop));
             fprintf(stderr, "The running average after %d writes is %f ns\n", current_block, average_ns);
             fprintf(stderr, "-----\n");
-
-            // Mark block as full
-            gpu_output_databuf_set_filled(db, block_idx);
 
             clock_gettime(CLOCK_MONOTONIC, &loop_end);
 
