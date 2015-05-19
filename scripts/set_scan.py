@@ -30,7 +30,7 @@ from time import sleep
 import signal
 import sys
 
-def cleanup(signal, frame):
+def cleanup():
     print "> Killing fake_gpu and vegasFitsWriter..."
     hashpipe.terminate()
 
@@ -39,12 +39,15 @@ def cleanup(signal, frame):
 
     exit(0)
 
-signal.signal(signal.SIGINT, cleanup)
+def signal_handler(signal, frame):
+    cleanup()
+
+signal.signal(signal.SIGINT, signal_handler)
 
 # Clear out FIFOs
 print "Clearing control FIFOs"
-hash_fifo = "/tmp/fake_gpu_control"
-vegas_fifo = "/tmp/vegas_fits_control"
+hash_fifo = "/tmp/tchamber/fake_gpu_control"
+vegas_fifo = "/tmp/tchamber/vegas_fits_control"
 try:
     fifo = hash_fifo
     open(fifo, 'w+').close()

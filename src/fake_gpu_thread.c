@@ -56,11 +56,8 @@ double get_curr_time_dmjd();
 static int init(struct hashpipe_thread_args *args)
 {
     srand(time(NULL));
-    char *fifo_loc = "/tmp/fake_gpu_control";
-    if (open_fifo(fifo_loc) == -1)
+    if (open_fifo("/tmp/tchamber/fake_gpu_control") == -1)
         return -1;
-
-    fprintf(stderr, "Using fake_gpu control FIFO: %s\n", fifo_loc);
 
     hashpipe_status_t st = args->st;
 

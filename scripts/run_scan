@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Copyright (C) 2015 Associated Universities, Inc. Washington DC, USA.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -55,7 +57,7 @@ fi
 cmd="START"
 echo "> Starting the scan"
 echo ">   Sending the command \"$cmd\" to fake_gpu"
-echo "$cmd" >> /tmp/fake_gpu_control
+echo "$cmd" >> /tmp/tchamber/fake_gpu_control
 
 echo ">   Sending the command \"$cmd\" to vegasFitsWriter"
-echo "$cmd" >> /tmp/vegas_fits_control
+echo "$cmd" >> /tmp/tchamber/vegas_fits_control
