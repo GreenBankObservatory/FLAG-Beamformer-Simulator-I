@@ -46,8 +46,8 @@ signal.signal(signal.SIGINT, signal_handler)
 
 # Clear out FIFOs
 print "Clearing control FIFOs"
-hash_fifo = "/tmp/fake_gpu_control"
-vegas_fifo = "/tmp/vegas_fits_control"
+hash_fifo = "/tmp/tchamber/fake_gpu_control"
+vegas_fifo = "/tmp/tchamber/vegas_fits_control"
 try:
     fifo = hash_fifo
     open(fifo, 'w+').close()
