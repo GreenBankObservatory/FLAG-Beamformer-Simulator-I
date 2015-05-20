@@ -115,18 +115,10 @@ static void *run(hashpipe_thread_args_t * args)
 
     int cmd = INVALID;
 
-    timeval curr_timeval;
-//     timeval start_timeval;
-
     double curr_time_dmjd = -1;
     double start_time_dmjd = -1;
 
-//     int test = 0;
-//     int blocks_written = 0;
     uint64_t elapsed_ns = 0;
-
-    // FIFO thingy
-//     struct pollfd pfd[2];
 
     while (run_threads())
     {
@@ -158,23 +150,6 @@ static void *run(hashpipe_thread_args_t * args)
                 continue;
             }
 
-            // Calculate when the scan should start
-            // TODO: right now this just starts 5 seconds after we recv START
-            // Set curr_timeval to the current time
-            gettimeofday(&curr_timeval, 0);
-            // Set start_timeval to 5 seconds after that
-//             start_timeval = curr_timeval;
-//             start_timeval.tv_sec += 5;
-
-//             curr_time_dmjd = timeval_2_mjd(&curr_timeval);
-//             start_time_dmjd = timeval_2_mjd(&start_timeval);
-
-//             // TODO: This is just for dev purposes; in production this value will be set elsewhere
-//             hashpipe_status_lock_safe(&st);
-//             // TODO: Verify that my changes to hputr8 were necessary/did not break anything
-//             hputr8(st.buf, "STRTDMJD", start_time_dmjd);
-//             hashpipe_status_unlock_safe(&st);
-
             hashpipe_status_lock_safe(&st);
             // ...find out how long we should scan
             hgeti4(st.buf, "SCANLEN", &requested_scan_length);
@@ -188,9 +163,6 @@ static void *run(hashpipe_thread_args_t * args)
                 fprintf(stderr, "STRTDMJD is set to a negative value!\n");
                 continue; //why is this starting still?
             }
-
-//             fprintf(stderr, "Test: %d\n", test++);
-//             fprintf(stderr, "SRTDMJD: %f\n", start_time_dmjd
 
             // calculate number of blocks to write based on SCANLEN
             num_blocks_to_write = (PACKET_RATE * requested_scan_length) / N;
