@@ -344,6 +344,7 @@ static void *run(hashpipe_thread_args_t * args)
             {
                 current_block = 0;
                 mcnt = 0;
+                elapsed_ns = 0;
                 hputs(st.buf, "SCANSTAT", "off");
                 clock_gettime(CLOCK_MONOTONIC, &scan_stop_time);
                 fprintf(stderr, "\nScan complete!\n\tRequested scan time: %d\n\tActual scan time: %f\n",
