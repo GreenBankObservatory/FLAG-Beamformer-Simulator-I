@@ -66,7 +66,7 @@ static void *run(hashpipe_thread_args_t * args)
 	int num_blocks_to_write = 0;
 	// packets per second
 	const int PACKET_RATE = 30300;
-	const int N = 2;
+	const int N = 30;
 // 	const float GPU_DELAY = N / PACKET_RATE;
 
     // The current scanning status
