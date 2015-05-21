@@ -36,11 +36,11 @@ if [ $? -eq 1 ]; then
 fi
 
 # Make sure there is at least one processe named vegasFitsWriter being run by the current user
-# pgrep -u $USER vegasFitsWriter > /dev/null
-# if [ $? -eq 1 ]; then
-#     echo ">   ERROR: vegasFitsWriter is not running for the current user"
-#     do_exit=1
-# fi
+pgrep -u $USER vegasFitsWriter > /dev/null
+if [ $? -eq 1 ]; then
+    echo ">   ERROR: vegasFitsWriter is not running for the current user"
+    do_exit=1
+fi
 
 if [ "$do_exit" -eq 1 ]; then
     echo "> Exiting..."
