@@ -62,6 +62,14 @@ static int init(struct hashpipe_thread_args *args)
         return -1;
 
     fprintf(stderr, "Using fake_gpu control FIFO: %s\n", fifo_loc);
+    fprintf(stderr, "Data Size Stats:\n");
+    fprintf(stderr, "\tNumber of channels:                           %10d channels\n", NUM_CHANNELS);
+    fprintf(stderr, "\tBin size:                                     %10d elements\n", BIN_SIZE);
+    fprintf(stderr, "\tElement size:                                 %10lu bytes\n", 2 * sizeof (float));
+    fprintf(stderr, "\tBlock size: (num_chans * bin_size * el_size): %10lu bytes\n",
+            NUM_CHANNELS * BIN_SIZE * (2 * sizeof (float)));
+//     fprintf(stderr, "\tThe required data rate for this scan is:      %d bytes/second\n",
+
 
     hashpipe_status_t st = args->st;
 
@@ -101,13 +109,12 @@ static void *run(hashpipe_thread_args_t * args)
     int num_blocks_to_write = -1;
     int current_block = 0;
     // packets per second received from roach
-    const int PACKET_RATE = 100;
-    // Integration time in ms?? can't remember
-    const float INT_TIME = .5;
-
+    const int PACKET_RATE = 30300;
     // This is what mcnt will increment by
-    const int N = (int)(PACKET_RATE * INT_TIME);
-    const float GPU_DELAY = (float)N / (float)PACKET_RATE;
+    const int N = 30;
+    // Integration time in seconds
+    // This is the amount of time that we will sleep for (total) at every block write
+    const float INT_TIME = (float)N / (float)PACKET_RATE;
 
     timespec loop_start, loop_end;
     timespec scan_start_time, scan_stop_time;
@@ -118,7 +125,7 @@ static void *run(hashpipe_thread_args_t * args)
     double curr_time_dmjd = -1;
     double start_time_dmjd = -1;
 
-    uint64_t elapsed_ns = 0;
+    uint64_t scan_ns = 0;
 
     while (run_threads())
     {
@@ -131,8 +138,6 @@ static void *run(hashpipe_thread_args_t * args)
 
         // spin until we receive a START from the user
         cmd = check_cmd();
-//         sleep(1);
-//         fprintf(stderr, "cmd: %d\n", cmd);
         if (cmd == START)
         {
             fprintf(stderr, "START received!\n");
@@ -294,8 +299,8 @@ static void *run(hashpipe_thread_args_t * args)
 
             // Calculate time taken to write to shm
             fprintf(stderr, "-----\n");
-            elapsed_ns += ELAPSED_NS(shm_start, shm_stop);
-            double average_ns = elapsed_ns / current_block;
+            scan_ns += ELAPSED_NS(shm_start, shm_stop);
+            double average_ns = scan_ns / current_block;
             fprintf(stderr, "The write to shared memory for %d elements took %ld ns\n", BIN_SIZE, ELAPSED_NS(shm_start, shm_stop));
             fprintf(stderr, "The running average after %d writes is %f ns\n", current_block, average_ns);
             fprintf(stderr, "-----\n");
@@ -303,8 +308,12 @@ static void *run(hashpipe_thread_args_t * args)
             clock_gettime(CLOCK_MONOTONIC, &loop_end);
 
             // delay in ns
-            float delay = GPU_DELAY * 1000000000 - ELAPSED_NS(loop_start, loop_end);
-            fprintf(stderr, "\tWaiting %f seconds\n", delay / 1000000000);
+            uint64_t write_to_shm_ns = ELAPSED_NS(loop_start, loop_end);
+            uint64_t delay = INT_TIME * 1000000000 - write_to_shm_ns;
+
+            fprintf(stderr, "\tIt took %lu ns to write to shared memory\n", write_to_shm_ns);
+            fprintf(stderr, "\t%lu - %lu = %lu\n", (uint64_t)(INT_TIME * 1000000000), write_to_shm_ns, delay);
+            fprintf(stderr, "\tWaiting %lu ns (%f seconds)\n", delay, (double)delay / 1000000000.0);
             if (delay <= 0)
             {
                 fprintf(stderr, "WARNING: A negative delay indicates that the scan is NOT running in real time\n");
@@ -316,14 +325,14 @@ static void *run(hashpipe_thread_args_t * args)
             {
                 current_block = 0;
                 mcnt = 0;
-                elapsed_ns = 0;
+                scan_ns = 0;
                 hputs(st.buf, "SCANSTAT", "off");
                 clock_gettime(CLOCK_MONOTONIC, &scan_stop_time);
                 fprintf(stderr, "\nScan complete!\n\tRequested scan time: %d\n\tActual scan time: %f\n",
                         requested_scan_length, (float)ELAPSED_NS(scan_start_time, scan_stop_time) / 1000000000.0);
 
-                fprintf(stderr, "\nPACKET_RATE: %d\nINT_TIME: %f\nN: %d\nGPU_DELAY: %f\n",
-                    PACKET_RATE, INT_TIME, N, GPU_DELAY);
+                fprintf(stderr, "\nPACKET_RATE: %d\nINT_TIME: %f\nN: %d\n",
+                    PACKET_RATE, INT_TIME, N);
 
                 fprintf(stderr, "\nEND OF SCAN\n");
             }

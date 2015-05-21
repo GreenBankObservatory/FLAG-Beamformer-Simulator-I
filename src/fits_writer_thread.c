@@ -67,8 +67,8 @@ static void *run(hashpipe_thread_args_t * args)
 	// packets per second
 	const int PACKET_RATE = 30300;
 	const int N = 2;
-	const float GPU_DELAY = N / PACKET_RATE; 
-    
+// 	const float GPU_DELAY = N / PACKET_RATE;
+
     // The current scanning status
     char scan_status[SCAN_STATUS_LENGTH];
 
@@ -79,7 +79,7 @@ static void *run(hashpipe_thread_args_t * args)
     fitsfile *fptr = NULL;
     char filename[256];
 
-	
+
 
     hashpipe_status_lock_safe(&st);
     // Force SCANINIT to 0 to make sure we wait for user input
@@ -181,7 +181,7 @@ static void *run(hashpipe_thread_args_t * args)
         if (strcmp(scan_status, "scanning") == 0)
         {
             fprintf(stderr, "Scanning. Elapsed time: %ld\n", scan_elapsed_time);
-            
+
             // write FITS data!
 //             fprintf(stderr, "writing row of data\n");
             fits_write_row(fptr, &(db->block[block_idx]), row_num++);
@@ -287,7 +287,7 @@ fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int 
     if (status)          /* print any error messages */
       fits_report_error(stderr, status);
 
-    
+
     // Use this to allow variable bin sizes
     // TODO: Should this only be 3 chars long?
     char data_form[10];
@@ -330,15 +330,15 @@ int fits_write_row(fitsfile *fptr, gpu_output_databuf_block_t *block, int row_nu
 	fprintf(stderr, "num data els: %ld\n", data_elements);
 
 	fits_write_col_int(fptr, 1,row_num + 1, 1, 1, mcnt, &status);
-	
+
 	if (status)
       fits_report_error(stderr, status);
-	
+
     fits_write_col_cmp(fptr, 2, row_num + 1, 1, data_elements, data, &status);
-	
+
     if (status)
       fits_report_error(stderr, status);
-	
+
     return(status);
 
 }
