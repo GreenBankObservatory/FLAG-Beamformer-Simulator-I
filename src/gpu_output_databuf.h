@@ -42,9 +42,9 @@
 //   is given as: BIN_SIZE * NUM_CHANNELS
 // #define NUM_CHANNELS 160
 #define NUM_CHANNELS 50
-#define TOTAL_DATA_SIZE (BIN_SIZE * NUM_CHANNELS * 2)
+#define TOTAL_DATA_SIZE (BIN_SIZE * NUM_CHANNELS * 2) //907711.000000 //862736.000000
 
-#define NUM_BLOCKS 2
+#define NUM_BLOCKS 4
 // #define SCANLEN 5
 
 // TODO: Cache alignment???

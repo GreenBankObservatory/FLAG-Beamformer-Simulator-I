@@ -48,6 +48,8 @@
 
 #define MJD_1970_EPOCH (40587)
 
+#define DEBUG
+
 void nsleep(long ns);
 double timeval_2_mjd(timeval *tv);
 time_t dmjd_2_secs(double dmjd);
@@ -66,9 +68,10 @@ static int init(struct hashpipe_thread_args *args)
     fprintf(stderr, "\tNumber of channels:                           %10d channels\n", NUM_CHANNELS);
     fprintf(stderr, "\tBin size:                                     %10d elements\n", BIN_SIZE);
     fprintf(stderr, "\tElement size:                                 %10lu bytes\n", 2 * sizeof (float));
+    fprintf(stderr, "\tNumber of elements in a block:                %10d elements\n", NUM_CHANNELS * BIN_SIZE);
     fprintf(stderr, "\tBlock size: (num_chans * bin_size * el_size): %10lu bytes\n",
             NUM_CHANNELS * BIN_SIZE * (2 * sizeof (float)));
-//     fprintf(stderr, "\tThe required data rate for this scan is:      %d bytes/second\n",
+
 
 
     hashpipe_status_t st = args->st;
@@ -107,11 +110,11 @@ static void *run(hashpipe_thread_args_t * args)
 
     // The number of blocks we will write in a scan. Derived from requested_scan_length
     int num_blocks_to_write = -1;
-    int current_block = 0;
+    int block_counter = 0;
     // packets per second received from roach
-    const int PACKET_RATE = 30300;
+    const int PACKET_RATE = 303000;
     // This is what mcnt will increment by
-    const int N = 30;
+    const int N = 303;
     // Integration time in seconds
     // This is the amount of time that we will sleep for (total) at every block write
     const float INT_TIME = (float)N / (float)PACKET_RATE;
@@ -119,6 +122,7 @@ static void *run(hashpipe_thread_args_t * args)
     timespec loop_start, loop_end;
     timespec scan_start_time, scan_stop_time;
     timespec shm_start, shm_stop;
+    timespec fits_start, fits_stop;
 
     int cmd = INVALID;
 
@@ -191,6 +195,15 @@ static void *run(hashpipe_thread_args_t * args)
                 continue;
             }
 
+            fprintf(stderr, "Data Rate Stats:\n");
+            fprintf(stderr, "\tIntegration Time:                             %10f seconds\n", INT_TIME);
+            fprintf(stderr, "\tRequired Data Rate:                           %10f writes/second\n", 1/INT_TIME);
+            fprintf(stderr, "\tPacket Rate:                                  %10d samples/second\n", PACKET_RATE);
+            fprintf(stderr, "\tIntegration Size:                             %10d samples\n", N);
+            fprintf(stderr, "\tTotal Data Rate:                              %10f bytes/second; %10f GB/s\n",
+                    (NUM_CHANNELS * BIN_SIZE * (2 * sizeof (float))) / INT_TIME,
+                    ((NUM_CHANNELS * BIN_SIZE * (2 * sizeof (float))) / INT_TIME) / (1024 * 1024 * 1024));
+
             // TODO: check that num blocks to write is an integer
         }
         else if (cmd == STOP || cmd == QUIT)
@@ -201,7 +214,7 @@ static void *run(hashpipe_thread_args_t * args)
             hputs(st.buf, "SCANSTAT", "off");
             hashpipe_status_unlock_safe(&st);
 
-            current_block = 0;
+            block_counter = 0;
             mcnt = 0;
 
             if (cmd == QUIT)
@@ -237,6 +250,7 @@ static void *run(hashpipe_thread_args_t * args)
         // If we are "scanning"...
         else if (strcmp(scan_status, "scanning") == 0)
         {
+            clock_gettime(CLOCK_MONOTONIC, &fits_start);
             // Wait for the current block to be set to free
             while ((rv=gpu_output_databuf_wait_free(db, block_idx)) != HASHPIPE_OK)
             {
@@ -254,6 +268,9 @@ static void *run(hashpipe_thread_args_t * args)
                     break;
                 }
             }
+            clock_gettime(CLOCK_MONOTONIC, &fits_stop);
+
+            fprintf(stderr, "Waited %ld ns for the FITS writer to write\n", ELAPSED_NS(fits_start, fits_stop));
 
             hashpipe_status_lock_safe(&st);
             // Set status to sending
@@ -263,8 +280,10 @@ static void *run(hashpipe_thread_args_t * args)
             db->block[block_idx].header.mcnt = mcnt;
             mcnt += N;
 
-            fprintf(stderr, "\tCurrent block is: %d\n", current_block);
+#ifdef DEBUG
+            fprintf(stderr, "\tCurrent block is: %d\n", block_counter);
             fprintf(stderr, "\nWriting to block %d on mcnt %d\n", block_idx, db->block[block_idx].header.mcnt);
+#endif
 
             // Benchmark our write to shared memory
             clock_gettime(CLOCK_MONOTONIC, &shm_start);
@@ -295,46 +314,57 @@ static void *run(hashpipe_thread_args_t * args)
 
             // Setup for next block
             block_idx = (block_idx + 1) % NUM_BLOCKS;
-            current_block++;
+            block_counter++;
 
-            // Calculate time taken to write to shm
-            fprintf(stderr, "-----\n");
-            scan_ns += ELAPSED_NS(shm_start, shm_stop);
-            double average_ns = scan_ns / current_block;
-            fprintf(stderr, "The write to shared memory for %d elements took %ld ns\n", BIN_SIZE, ELAPSED_NS(shm_start, shm_stop));
-            fprintf(stderr, "The running average after %d writes is %f ns\n", current_block, average_ns);
-            fprintf(stderr, "-----\n");
+// #ifdef DEBUG
+//             // Calculate time taken to write to shm
+//             fprintf(stderr, "-----\n");
+//             scan_ns += ELAPSED_NS(shm_start, shm_stop);
+//             double average_ns = scan_ns / block_counter;
+//             fprintf(stderr, "The write to shared memory for %d elements took %ld ns\n", BIN_SIZE, ELAPSED_NS(shm_start, shm_stop));
+//             fprintf(stderr, "The running average after %d writes is %f ns\n", block_counter, average_ns);
+//             fprintf(stderr, "-----\n");
+// #endif
 
             clock_gettime(CLOCK_MONOTONIC, &loop_end);
 
             // delay in ns
-            uint64_t write_to_shm_ns = ELAPSED_NS(loop_start, loop_end);
-            uint64_t delay = INT_TIME * 1000000000 - write_to_shm_ns;
+            int64_t write_to_shm_ns = ELAPSED_NS(loop_start, loop_end);
+            int64_t delay = INT_TIME * 1000000000 - write_to_shm_ns;
 
-            fprintf(stderr, "\tIt took %lu ns to write to shared memory\n", write_to_shm_ns);
-            fprintf(stderr, "\t%lu - %lu = %lu\n", (uint64_t)(INT_TIME * 1000000000), write_to_shm_ns, delay);
-            fprintf(stderr, "\tWaiting %lu ns (%f seconds)\n", delay, (double)delay / 1000000000.0);
+
             if (delay <= 0)
             {
-                fprintf(stderr, "WARNING: A negative delay indicates that the scan is NOT running in real time\n");
+                fprintf(stderr, "WARNING: This write was %ld ns too slow\n", delay);
             }
-            nsleep(delay);
+            else
+            {
+                #ifdef DEBUG
+                fprintf(stderr, "\tThe loop has so far taken %lu ns, so we will remove this amount from our integration time\n", write_to_shm_ns);
+                fprintf(stderr, "\t%ld - %ld = %ld\n", (uint64_t)(INT_TIME * 1000000000), write_to_shm_ns, delay);
+                fprintf(stderr, "\tWaiting %ld ns (%f seconds)\n", delay, (double)delay / 1000000000.0);
+                #endif
+                nsleep(delay);
+            }
 
             // Test to see if we are done scanning
-            if (current_block >= num_blocks_to_write)
+            if (block_counter >= num_blocks_to_write)
             {
-                current_block = 0;
-                mcnt = 0;
-                scan_ns = 0;
+
                 hputs(st.buf, "SCANSTAT", "off");
                 clock_gettime(CLOCK_MONOTONIC, &scan_stop_time);
                 fprintf(stderr, "\nScan complete!\n\tRequested scan time: %d\n\tActual scan time: %f\n",
                         requested_scan_length, (float)ELAPSED_NS(scan_start_time, scan_stop_time) / 1000000000.0);
+                fprintf(stderr, "\nWe wrote %d blocks to shared memory\n", block_counter);
 
                 fprintf(stderr, "\nPACKET_RATE: %d\nINT_TIME: %f\nN: %d\n",
                     PACKET_RATE, INT_TIME, N);
 
                 fprintf(stderr, "\nEND OF SCAN\n");
+
+                block_counter = 0;
+                mcnt = 0;
+                scan_ns = 0;
             }
         }
 
