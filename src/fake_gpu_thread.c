@@ -112,7 +112,7 @@ static void *run(hashpipe_thread_args_t * args)
     int num_blocks_to_write = -1;
     int block_counter = 0;
     // packets per second received from roach
-    const int PACKET_RATE = 303000;
+    const int PACKET_RATE = 3030;
     // This is what mcnt will increment by
     const int N = 303;
     // Integration time in seconds
