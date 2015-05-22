@@ -285,25 +285,31 @@ static void *run(hashpipe_thread_args_t * args)
             fprintf(stderr, "\nWriting to block %d on mcnt %d\n", block_idx, db->block[block_idx].header.mcnt);
 #endif
 
+            // Zero out our shm block's data
+            memset(db->block[block_idx].data, 0, NUM_CHANNELS * BIN_SIZE * 2);
+
             // Benchmark our write to shared memory
             clock_gettime(CLOCK_MONOTONIC, &shm_start);
+
+            fprintf(stderr, "\tBIN_SIZE: %d\n", BIN_SIZE);
+            fprintf(stderr, "\tNONZERO_BIN_SIZE: %d\n", NONZERO_BIN_SIZE);
 
             // Write data to shared memory
             int i;
             for (i = 0; i < NUM_CHANNELS; i++)
             {
                 int j;
-                for (j = 0; j < BIN_SIZE * 2; j += 2)
+                for (j = 0; j < NONZERO_BIN_SIZE * 2; j += 2)
                 {
                     // index counters
-                    int real_i = j + (i * BIN_SIZE * 2);
-                    int imag_i = j + (i * BIN_SIZE * 2) + 1;
+                    int real_i = j + (i * NONZERO_BIN_SIZE * 2);
+                    int imag_i = j + (i * NONZERO_BIN_SIZE * 2) + 1;
                     // real half of pair
-                    db->block[block_idx].data[real_i] = j/2 + (block_idx * BIN_SIZE);
+                    db->block[block_idx].data[real_i] = j/2 + (block_idx * NONZERO_BIN_SIZE);
                     // imaginary half of pair
-                    db->block[block_idx].data[imag_i] = j/2 + .5 + (block_idx * BIN_SIZE);
-    //                 fprintf(stderr, "wrote real to %d: %f\n", real_i, db->block[block_idx].data[real_i]);
-    //                 fprintf(stderr, "wrote imag to %d: %f\n", imag_i, db->block[block_idx].data[imag_i]);
+                    db->block[block_idx].data[imag_i] = j/2 + .5 + (block_idx * NONZERO_BIN_SIZE);
+                    fprintf(stderr, "wrote real to %d: %f\n", real_i, db->block[block_idx].data[real_i]);
+                    fprintf(stderr, "wrote imag to %d: %f\n", imag_i, db->block[block_idx].data[imag_i]);
                 }
             }
 

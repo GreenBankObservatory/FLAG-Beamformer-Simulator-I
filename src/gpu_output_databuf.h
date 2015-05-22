@@ -31,7 +31,10 @@
 // The bin size is the number of elements in the lower trianglular
 //   portion of the covariance matrix
 //   (41 * 20) gives us the number of complex pair elements
+// #define BIN_SIZE (((64 * 65) / 2) + 32)
 #define BIN_SIZE 2112
+#define NONZERO_BIN_SIZE 840
+// #define NONZERO_BIN_SIZE (((NUM_ANTENNAS * NUM_ANTENNAS) / 2) + (NUM_ANTENNAS / 2))
 // #define BIN_SIZE (41 * 20)
 // #define BIN_SIZE 4
 // This is the number of frequency channels that we will be correlating
@@ -41,7 +44,7 @@
 //   That is, the total number of complex pairs we will be writing to shared memory
 //   is given as: BIN_SIZE * NUM_CHANNELS
 // #define NUM_CHANNELS 160
-#define NUM_CHANNELS 50
+#define NUM_CHANNELS 1
 #define TOTAL_DATA_SIZE (BIN_SIZE * NUM_CHANNELS * 2) //907711.000000 //862736.000000
 
 #define NUM_BLOCKS 4

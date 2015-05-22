@@ -36,7 +36,9 @@ if [ "$HOSTNAME" = "west" ]; then
     cat /dev/null > /tmp/tchamber/fake_gpu_control
     cat /dev/null > /tmp/tchamber/vegas_fits_control
 
-    if [ -e "/tmp/tchamber/sim1fits/JUNK/VEGAS/*.fits" ]; then
+    count=`ls -1 *.fits 2>/dev/null | wc -l`
+    if [ $count > 0 ]; then
+        echo ">   Removing all *.fits files from /tmp/tchamber/sim1fits/JUNK/VEGAS/"
         rm /tmp/tchamber/sim1fits/JUNK/VEGAS/*.fits
     else
         echo ">   No *.fits files to remove"
