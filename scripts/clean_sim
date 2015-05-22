@@ -25,7 +25,7 @@
 # WARNING: This script will ruthlessly murder any process whose name matches the strings "hashpipe" or "vegasFitsWriter"
 # WARNING: This script relies on a custom "pkill" script; it is probably not portable
 
-if [ "$HOSTNAME" = "west" ]; then
+if [ "$HOSTNAME" = "west" ] || [ "$HOSTNAME" = "vegas-hpc8" ]; then
     echo "> Killing all instances of hashpipe and vegasFitsWriter owned by the current user:"
     pkill "hashpipe"
     pkill "vegasFitsWriter"

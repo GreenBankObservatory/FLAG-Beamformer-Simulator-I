@@ -28,7 +28,7 @@
 
 # NOTE:    This script is hardcoded to only work on the "west" host - you will need to change this
 
-if [ "$HOSTNAME" = "west" ]; then
+if [ "$HOSTNAME" = "west" ] || [ "$HOSTNAME" = "vegas-hpc8" ]; then
     python $(dirname ${0})/clean_ipc.py
     echo -e "> All shared memory segments and semaphore arrays owned by $USER have been removed\n"
 

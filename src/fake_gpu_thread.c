@@ -112,7 +112,7 @@ static void *run(hashpipe_thread_args_t * args)
     int num_blocks_to_write = -1;
     int block_counter = 0;
     // packets per second received from roach
-    const int PACKET_RATE = 3030;
+    const int PACKET_RATE = 303000;
     // This is what mcnt will increment by
     const int N = 303;
     // Integration time in seconds
@@ -269,9 +269,9 @@ static void *run(hashpipe_thread_args_t * args)
                 }
             }
             clock_gettime(CLOCK_MONOTONIC, &fits_stop);
-
+#ifdef DEBUG
             fprintf(stderr, "Waited %ld ns for the FITS writer to write\n", ELAPSED_NS(fits_start, fits_stop));
-
+#endif
             hashpipe_status_lock_safe(&st);
             // Set status to sending
             hputs(st.buf, status_key, "writing");
@@ -291,8 +291,8 @@ static void *run(hashpipe_thread_args_t * args)
             // Benchmark our write to shared memory
             clock_gettime(CLOCK_MONOTONIC, &shm_start);
 
-            fprintf(stderr, "\tBIN_SIZE: %d\n", BIN_SIZE);
-            fprintf(stderr, "\tNONZERO_BIN_SIZE: %d\n", NONZERO_BIN_SIZE);
+//             fprintf(stderr, "\tBIN_SIZE: %d\n", BIN_SIZE);
+//             fprintf(stderr, "\tNONZERO_BIN_SIZE: %d\n", NONZERO_BIN_SIZE);
 
             // Write data to shared memory
             int i;
@@ -308,8 +308,8 @@ static void *run(hashpipe_thread_args_t * args)
                     db->block[block_idx].data[real_i] = j/2 + (block_idx * NONZERO_BIN_SIZE);
                     // imaginary half of pair
                     db->block[block_idx].data[imag_i] = j/2 + .5 + (block_idx * NONZERO_BIN_SIZE);
-                    fprintf(stderr, "wrote real to %d: %f\n", real_i, db->block[block_idx].data[real_i]);
-                    fprintf(stderr, "wrote imag to %d: %f\n", imag_i, db->block[block_idx].data[imag_i]);
+//                     fprintf(stderr, "wrote real to %d: %f\n", real_i, db->block[block_idx].data[real_i]);
+//                     fprintf(stderr, "wrote imag to %d: %f\n", imag_i, db->block[block_idx].data[imag_i]);
                 }
             }
 
