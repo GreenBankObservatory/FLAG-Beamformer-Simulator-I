@@ -48,7 +48,7 @@
 
 #define MJD_1970_EPOCH (40587)
 
-#define DEBUG
+// #define DEBUG
 
 void nsleep(long ns);
 double timeval_2_mjd(timeval *tv);
@@ -316,15 +316,15 @@ static void *run(hashpipe_thread_args_t * args)
             block_idx = (block_idx + 1) % NUM_BLOCKS;
             block_counter++;
 
-// #ifdef DEBUG
-//             // Calculate time taken to write to shm
-//             fprintf(stderr, "-----\n");
-//             scan_ns += ELAPSED_NS(shm_start, shm_stop);
-//             double average_ns = scan_ns / block_counter;
-//             fprintf(stderr, "The write to shared memory for %d elements took %ld ns\n", BIN_SIZE, ELAPSED_NS(shm_start, shm_stop));
-//             fprintf(stderr, "The running average after %d writes is %f ns\n", block_counter, average_ns);
-//             fprintf(stderr, "-----\n");
-// #endif
+#ifdef DEBUG
+            // Calculate time taken to write to shm
+            fprintf(stderr, "-----\n");
+            scan_ns += ELAPSED_NS(shm_start, shm_stop);
+            double average_ns = scan_ns / block_counter;
+            fprintf(stderr, "The write to shared memory for %d elements took %ld ns\n", BIN_SIZE, ELAPSED_NS(shm_start, shm_stop));
+            fprintf(stderr, "The running average after %d writes is %f ns\n", block_counter, average_ns);
+            fprintf(stderr, "-----\n");
+#endif
 
             clock_gettime(CLOCK_MONOTONIC, &loop_end);
 
@@ -335,7 +335,7 @@ static void *run(hashpipe_thread_args_t * args)
 
             if (delay <= 0)
             {
-                fprintf(stderr, "WARNING: This write was %ld ns too slow\n", delay);
+                fprintf(stderr, "WARNING: This write was %ld ns too slow\n", delay * -1);
             }
             else
             {
