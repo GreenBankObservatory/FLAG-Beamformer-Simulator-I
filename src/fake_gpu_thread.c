@@ -48,7 +48,7 @@
 
 #define MJD_1970_EPOCH (40587)
 
-// #define DEBUG
+#define DEBUG
 
 void nsleep(long ns);
 double timeval_2_mjd(timeval *tv);
@@ -140,7 +140,7 @@ static void *run(hashpipe_thread_args_t * args)
         hgets(st.buf, "SCANSTAT", SCAN_STATUS_LENGTH, scan_status);
         hashpipe_status_unlock_safe(&st);
 
-        // spin until we receive a START from the user
+        // Check for a command from the user
         cmd = check_cmd();
         if (cmd == START)
         {
@@ -196,13 +196,18 @@ static void *run(hashpipe_thread_args_t * args)
             }
 
             fprintf(stderr, "Data Rate Stats:\n");
-            fprintf(stderr, "\tIntegration Time:                             %10f seconds\n", INT_TIME);
-            fprintf(stderr, "\tRequired Data Rate:                           %10f writes/second\n", 1/INT_TIME);
-            fprintf(stderr, "\tPacket Rate:                                  %10d samples/second\n", PACKET_RATE);
-            fprintf(stderr, "\tIntegration Size:                             %10d samples\n", N);
-            fprintf(stderr, "\tTotal Data Rate:                              %10f bytes/second; %10f GB/s\n",
-                    (NUM_CHANNELS * BIN_SIZE * (2 * sizeof (float))) / INT_TIME,
-                    ((NUM_CHANNELS * BIN_SIZE * (2 * sizeof (float))) / INT_TIME) / (1024 * 1024 * 1024));
+            fprintf(stderr, "\tIntegration Time:    %10f seconds\n", INT_TIME);
+            fprintf(stderr, "\tRequired Data Rate:  %10f writes/second\n", 1/INT_TIME);
+            fprintf(stderr, "\tPacket Rate:         %10d samples/second\n", PACKET_RATE);
+            fprintf(stderr, "\tIntegration Size:    %10d samples\n", N);
+            fprintf(stderr, "\tData Rate to Shared Memory:\n");
+            fprintf(stderr, "\t\t%.0f bytes/second; %f Gb/s\n",
+                (NUM_CHANNELS * BIN_SIZE * (2 * sizeof (float))) / INT_TIME,
+                ((NUM_CHANNELS * BIN_SIZE * (2 * sizeof (float))) / INT_TIME) / (1024 * 1024 * 1024) * 8);
+            fprintf(stderr, "\tData Rate to Disk:\n");
+            fprintf(stderr, "\t\t%.0f bytes/second; %f Gb/s\n",
+                (NUM_CHANNELS * 820 * (2 * sizeof (float))) / INT_TIME,
+                ((NUM_CHANNELS * 820 * (2 * sizeof (float))) / INT_TIME) / (1024 * 1024 * 1024) * 8);
 
             // TODO: check that num blocks to write is an integer
         }
@@ -270,7 +275,7 @@ static void *run(hashpipe_thread_args_t * args)
             }
             clock_gettime(CLOCK_MONOTONIC, &fits_stop);
 #ifdef DEBUG
-            fprintf(stderr, "Waited %ld ns for the FITS writer to write\n", ELAPSED_NS(fits_start, fits_stop));
+            fprintf(stderr, "Waited %ld ns for the block to be freed\n", ELAPSED_NS(fits_start, fits_stop));
 #endif
             hashpipe_status_lock_safe(&st);
             // Set status to sending
@@ -282,14 +287,14 @@ static void *run(hashpipe_thread_args_t * args)
 
 #ifdef DEBUG
             fprintf(stderr, "\tCurrent block is: %d\n", block_counter);
-            fprintf(stderr, "\nWriting to block %d on mcnt %d\n", block_idx, db->block[block_idx].header.mcnt);
+            fprintf(stderr, "\tWriting to block %d on mcnt %d\n", block_idx, db->block[block_idx].header.mcnt);
 #endif
-
-            // Zero out our shm block's data
-            memset(db->block[block_idx].data, 0, NUM_CHANNELS * BIN_SIZE * 2);
 
             // Benchmark our write to shared memory
             clock_gettime(CLOCK_MONOTONIC, &shm_start);
+
+            // Zero out our shm block's data
+            memset(db->block[block_idx].data, 0, NUM_CHANNELS * BIN_SIZE * 2);
 
 //             fprintf(stderr, "\tBIN_SIZE: %d\n", BIN_SIZE);
 //             fprintf(stderr, "\tNONZERO_BIN_SIZE: %d\n", NONZERO_BIN_SIZE);
@@ -335,8 +340,8 @@ static void *run(hashpipe_thread_args_t * args)
             clock_gettime(CLOCK_MONOTONIC, &loop_end);
 
             // delay in ns
-            int64_t write_to_shm_ns = ELAPSED_NS(loop_start, loop_end);
-            int64_t delay = INT_TIME * 1000000000 - write_to_shm_ns;
+            int64_t loop_ns = ELAPSED_NS(loop_start, loop_end);
+            int64_t delay = INT_TIME * 1000000000 - loop_ns;
 
 
             if (delay <= 0)
@@ -346,8 +351,8 @@ static void *run(hashpipe_thread_args_t * args)
             else
             {
                 #ifdef DEBUG
-                fprintf(stderr, "\tThe loop has so far taken %lu ns, so we will remove this amount from our integration time\n", write_to_shm_ns);
-                fprintf(stderr, "\t%ld - %ld = %ld\n", (uint64_t)(INT_TIME * 1000000000), write_to_shm_ns, delay);
+                fprintf(stderr, "\tThe loop has so far taken %lu ns, so we will remove this amount from our integration time\n", loop_ns);
+                fprintf(stderr, "\t%ld - %ld = %ld\n", (uint64_t)(INT_TIME * 1000000000), loop_ns, delay);
                 fprintf(stderr, "\tWaiting %ld ns (%f seconds)\n", delay, (double)delay / 1000000000.0);
                 #endif
                 nsleep(delay);
@@ -381,12 +386,14 @@ static void *run(hashpipe_thread_args_t * args)
     return THREAD_OK;
 }
 
-void nsleep(long ns)
+void nsleep(int64_t ns)
 {
     timespec delay;
 
-    delay.tv_sec = ns / 1000000000;
-    delay.tv_nsec = ns % 1000000000;
+//     delay.tv_sec = ns / 1000000000;
+//     delay.tv_nsec = ns % 1000000000;
+    delay.tv_sec = 0;
+    delay.tv_nsec = ns;
 
     nanosleep(&delay, NULL);
 }
