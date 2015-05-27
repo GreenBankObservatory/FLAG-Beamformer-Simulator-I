@@ -118,9 +118,11 @@ static void *run(hashpipe_thread_args_t * args)
     // Integration time in seconds
     // This is the amount of time that we will sleep for (total) at every block write
     const float INT_TIME = (float)N / (float)PACKET_RATE;
+    const int64_t INT_TIME_NS = INT_TIME * 1000000000;
 
     timespec loop_start, loop_end;
     timespec scan_start_time, scan_stop_time;
+    timespec sleep_until;
 #ifdef DEBUG
     timespec shm_start, shm_stop;
     timespec blocked_start, blocked_stop;
@@ -255,6 +257,8 @@ static void *run(hashpipe_thread_args_t * args)
 
                 // Start the scan timer
                 clock_gettime(CLOCK_MONOTONIC, &scan_start_time);
+                // Mark the time that all sleep intervals will be based off of
+                clock_gettime(CLOCK_MONOTONIC, &sleep_until);
             }
         }
         // If we are "scanning"...
@@ -361,9 +365,18 @@ static void *run(hashpipe_thread_args_t * args)
 
             // delay in ns
             int64_t loop_ns = ELAPSED_NS(loop_start, loop_end);
-            int64_t delay = INT_TIME * 1000000000 - loop_ns;
+//             int64_t delay = INT_TIME * 1000000000 - loop_ns;
 
+            sleep_until.tv_nsec += INT_TIME_NS;
+            if(sleep_until.tv_nsec >= 1000000000)
+            {
+                sleep_until.tv_nsec -= 1000000000;
+                sleep_until.tv_sec++;
+            }
+            clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &sleep_until, NULL);
 
+            // TODO: Verify that this block is still valid after changing to clock_nanosleep
+            int64_t delay = ELAPSED_NS(loop_end, sleep_until);
             if (delay <= 0)
             {
                 fprintf(stderr, "WARNING: This write was %ld ns too slow\n", delay * -1);
@@ -371,11 +384,11 @@ static void *run(hashpipe_thread_args_t * args)
             else
             {
                 #ifdef DEBUG
-                fprintf(stderr, "\tThe loop has so far taken %lu ns, so we will remove this amount from our integration time\n", loop_ns);
-                fprintf(stderr, "\t%ld - %ld = %ld\n", (uint64_t)(INT_TIME * 1000000000), loop_ns, delay);
+                fprintf(stderr, "\tThe loop has so far taken %lu ns, so we will remove this amount from our integration time:\n", loop_ns);
+                fprintf(stderr, "\t\t%ld - %ld = %ld\n", (uint64_t)(INT_TIME * 1000000000), loop_ns, delay);
                 fprintf(stderr, "\tWaiting %ld ns (%f seconds)\n", delay, (double)delay / 1000000000.0);
                 #endif
-                nsleep(delay);
+//                 nsleep(delay);
             }
 
             clock_gettime(CLOCK_MONOTONIC, &tmp_start);
