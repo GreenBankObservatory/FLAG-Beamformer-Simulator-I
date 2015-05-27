@@ -114,7 +114,7 @@ static void *run(hashpipe_thread_args_t * args)
     // packets per second received from roach
     const int PACKET_RATE = 303750;
     // This is what mcnt will increment by
-    const int N = 303;
+    const int N = 30;
     // Integration time in seconds
     // This is the amount of time that we will sleep for (total) at every block write
     const float INT_TIME = (float)N / (float)PACKET_RATE;
