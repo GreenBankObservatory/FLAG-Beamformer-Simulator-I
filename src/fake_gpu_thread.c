@@ -48,7 +48,7 @@
 
 #define MJD_1970_EPOCH (40587)
 
-// #define DEBUG
+#define DEBUG
 
 void nsleep(long ns);
 double timeval_2_mjd(timeval *tv);
@@ -124,6 +124,9 @@ static void *run(hashpipe_thread_args_t * args)
 #ifdef DEBUG
     timespec shm_start, shm_stop;
     timespec blocked_start, blocked_stop;
+    timespec tmp_start, tmp_stop;
+    int64_t total_scan_ns = 0;
+    int64_t scan_loop_ns = 0;
 #endif
 
     int cmd = INVALID;
@@ -280,7 +283,8 @@ static void *run(hashpipe_thread_args_t * args)
 
 #ifdef DEBUG
             clock_gettime(CLOCK_MONOTONIC, &blocked_stop);
-            fprintf(stderr, "\tWaited %ld ns for the block to be freed\n", ELAPSED_NS(blocked_start, blocked_stop));
+            fprintf(stderr, "Time from blocked_start to blocked_stop is: %ld\n", ELAPSED_NS(blocked_start, blocked_stop));
+            scan_loop_ns += ELAPSED_NS(blocked_start, blocked_stop);
 #endif
 //             hashpipe_status_lock_safe(&st);
 //             // Set status to sending
@@ -291,14 +295,15 @@ static void *run(hashpipe_thread_args_t * args)
             mcnt += N;
 
 #ifdef DEBUG
-            fprintf(stderr, "\tCurrent block is: %d\n", block_counter);
-            fprintf(stderr, "\tWriting to block %d on mcnt %d\n", block_idx, db->block[block_idx].header.mcnt);
+//             fprintf(stderr, "\tCurrent block is: %d\n", block_counter);
+//             fprintf(stderr, "\tWriting to block %d on mcnt %d\n", block_idx, db->block[block_idx].header.mcnt);
 
             // Benchmark our write to shared memory
             clock_gettime(CLOCK_MONOTONIC, &shm_start);
 
-            fprintf(stderr, "The time between getting a free block and starting to write data is: %ld ns\n",
+            fprintf(stderr, "Time from blocked_stop to shm_start is: %ld ns\n",
                     ELAPSED_NS(blocked_stop, shm_start));
+            scan_loop_ns += ELAPSED_NS(blocked_stop, shm_start);
 #endif
 
             // Zero out our shm block's data
@@ -328,6 +333,15 @@ static void *run(hashpipe_thread_args_t * args)
 
 #ifdef DEBUG
             clock_gettime(CLOCK_MONOTONIC, &shm_stop);
+
+//             // Calculate time taken to write to shm
+//             fprintf(stderr, "-----\n");
+//             scan_ns += ELAPSED_NS(shm_start, shm_stop);
+//             double average_ns = scan_ns / block_counter;
+            fprintf(stderr, "Time from shm_start to shm_stop is: %ld ns\n", ELAPSED_NS(shm_start, shm_stop));
+            scan_loop_ns += ELAPSED_NS(shm_start, shm_stop);
+//             fprintf(stderr, "The running average after %d writes is %f ns\n", block_counter, average_ns);
+//             fprintf(stderr, "-----\n");
 #endif
 
             // Mark block as full
@@ -337,17 +351,13 @@ static void *run(hashpipe_thread_args_t * args)
             block_idx = (block_idx + 1) % NUM_BLOCKS;
             block_counter++;
 
-#ifdef DEBUG
-            // Calculate time taken to write to shm
-//             fprintf(stderr, "-----\n");
-//             scan_ns += ELAPSED_NS(shm_start, shm_stop);
-//             double average_ns = scan_ns / block_counter;
-            fprintf(stderr, "The write to shared memory for %d elements took %ld ns\n", BIN_SIZE, ELAPSED_NS(shm_start, shm_stop));
-//             fprintf(stderr, "The running average after %d writes is %f ns\n", block_counter, average_ns);
-//             fprintf(stderr, "-----\n");
-#endif
+
 
             clock_gettime(CLOCK_MONOTONIC, &loop_end);
+#ifdef DEBUG
+            fprintf(stderr, "Time from shm_stop to loop_end is: %ld ns\n", ELAPSED_NS(shm_stop, loop_end));
+            scan_loop_ns += ELAPSED_NS(shm_stop, loop_end);
+#endif
 
             // delay in ns
             int64_t loop_ns = ELAPSED_NS(loop_start, loop_end);
@@ -368,6 +378,13 @@ static void *run(hashpipe_thread_args_t * args)
                 nsleep(delay);
             }
 
+            clock_gettime(CLOCK_MONOTONIC, &tmp_start);
+            scan_loop_ns += ELAPSED_NS(loop_end, tmp_start);
+            fprintf(stderr, "Time from loop_end to tmp_start: %ld\n",
+                    ELAPSED_NS(loop_end, tmp_start));
+
+
+
             // Test to see if we are done scanning
             if (block_counter >= num_blocks_to_write)
             {
@@ -375,11 +392,19 @@ static void *run(hashpipe_thread_args_t * args)
                 hputs(st.buf, "SCANSTAT", "off");
                 clock_gettime(CLOCK_MONOTONIC, &scan_stop_time);
                 fprintf(stderr, "\nScan complete!\n\tRequested scan time: %d\n\tActual scan time: %f\n",
-                        requested_scan_length, (float)ELAPSED_NS(scan_start_time, scan_stop_time) / 1000000000.0);
+                        requested_scan_length, (double)ELAPSED_NS(scan_start_time, scan_stop_time) / 1000000000.0);
                 fprintf(stderr, "\nWe wrote %d blocks to shared memory\n", block_counter);
 
                 fprintf(stderr, "\nPACKET_RATE: %d\nINT_TIME: %f\nN: %d\n",
                     PACKET_RATE, INT_TIME, N);
+
+                fprintf(stderr, "\tScan time via intervals was %ld ns = %f sec\n",
+                        total_scan_ns, (double)total_scan_ns / 1000000000.0);
+
+                fprintf(stderr, "\tThis scan was %f%% slower than it should have been.\n",
+                        (((double)ELAPSED_NS(scan_start_time, scan_stop_time) / 1000000000.0) / (double)requested_scan_length) * 100 - 100);
+                fprintf(stderr, "\tThis means that each block was written, on average, %.0f ns too slowly.\n",
+                        (double)(ELAPSED_NS(scan_start_time, scan_stop_time) - requested_scan_length * 1000000000) / (double)num_blocks_to_write);
 
                 fprintf(stderr, "\nEND OF SCAN\n");
 
@@ -387,7 +412,21 @@ static void *run(hashpipe_thread_args_t * args)
                 mcnt = 0;
                 scan_ns = 0;
             }
+
+
+
+            clock_gettime(CLOCK_MONOTONIC, &tmp_stop);
+            scan_loop_ns += ELAPSED_NS(tmp_start, tmp_stop);
+            fprintf(stderr, "Time from tmp_start to tmp_stop is: %ld\n",
+                    ELAPSED_NS(tmp_start, tmp_stop));
+
+            total_scan_ns += scan_loop_ns;
+            scan_loop_ns = 0;
+
+            fprintf(stderr, "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
         }
+
+
 
         /* Will exit if thread has been cancelled */
         pthread_testcancel();
