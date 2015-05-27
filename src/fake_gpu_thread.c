@@ -48,7 +48,7 @@
 
 #define MJD_1970_EPOCH (40587)
 
-#define DEBUG
+// #define DEBUG
 
 void nsleep(long ns);
 double timeval_2_mjd(timeval *tv);
@@ -112,7 +112,7 @@ static void *run(hashpipe_thread_args_t * args)
     int num_blocks_to_write = -1;
     int block_counter = 0;
     // packets per second received from roach
-    const int PACKET_RATE = 303000;
+    const int PACKET_RATE = 303750;
     // This is what mcnt will increment by
     const int N = 303;
     // Integration time in seconds
@@ -121,8 +121,10 @@ static void *run(hashpipe_thread_args_t * args)
 
     timespec loop_start, loop_end;
     timespec scan_start_time, scan_stop_time;
+#ifdef DEBUG
     timespec shm_start, shm_stop;
-    timespec fits_start, fits_stop;
+    timespec blocked_start, blocked_stop;
+#endif
 
     int cmd = INVALID;
 
@@ -255,7 +257,9 @@ static void *run(hashpipe_thread_args_t * args)
         // If we are "scanning"...
         else if (strcmp(scan_status, "scanning") == 0)
         {
-            clock_gettime(CLOCK_MONOTONIC, &fits_start);
+#ifdef DEBUG
+            clock_gettime(CLOCK_MONOTONIC, &blocked_start);
+#endif
             // Wait for the current block to be set to free
             while ((rv=gpu_output_databuf_wait_free(db, block_idx)) != HASHPIPE_OK)
             {
@@ -273,14 +277,15 @@ static void *run(hashpipe_thread_args_t * args)
                     break;
                 }
             }
-            clock_gettime(CLOCK_MONOTONIC, &fits_stop);
+
 #ifdef DEBUG
-            fprintf(stderr, "Waited %ld ns for the block to be freed\n", ELAPSED_NS(fits_start, fits_stop));
+            clock_gettime(CLOCK_MONOTONIC, &blocked_stop);
+            fprintf(stderr, "\tWaited %ld ns for the block to be freed\n", ELAPSED_NS(blocked_start, blocked_stop));
 #endif
-            hashpipe_status_lock_safe(&st);
-            // Set status to sending
-            hputs(st.buf, status_key, "writing");
-            hashpipe_status_unlock_safe(&st);
+//             hashpipe_status_lock_safe(&st);
+//             // Set status to sending
+//             hputs(st.buf, status_key, "writing");
+//             hashpipe_status_unlock_safe(&st);
 
             db->block[block_idx].header.mcnt = mcnt;
             mcnt += N;
@@ -288,10 +293,13 @@ static void *run(hashpipe_thread_args_t * args)
 #ifdef DEBUG
             fprintf(stderr, "\tCurrent block is: %d\n", block_counter);
             fprintf(stderr, "\tWriting to block %d on mcnt %d\n", block_idx, db->block[block_idx].header.mcnt);
-#endif
 
             // Benchmark our write to shared memory
             clock_gettime(CLOCK_MONOTONIC, &shm_start);
+
+            fprintf(stderr, "The time between getting a free block and starting to write data is: %ld ns\n",
+                    ELAPSED_NS(blocked_stop, shm_start));
+#endif
 
             // Zero out our shm block's data
             memset(db->block[block_idx].data, 0, NUM_CHANNELS * BIN_SIZE * 2);
@@ -318,7 +326,9 @@ static void *run(hashpipe_thread_args_t * args)
                 }
             }
 
+#ifdef DEBUG
             clock_gettime(CLOCK_MONOTONIC, &shm_stop);
+#endif
 
             // Mark block as full
             gpu_output_databuf_set_filled(db, block_idx);
@@ -329,12 +339,12 @@ static void *run(hashpipe_thread_args_t * args)
 
 #ifdef DEBUG
             // Calculate time taken to write to shm
-            fprintf(stderr, "-----\n");
-            scan_ns += ELAPSED_NS(shm_start, shm_stop);
-            double average_ns = scan_ns / block_counter;
+//             fprintf(stderr, "-----\n");
+//             scan_ns += ELAPSED_NS(shm_start, shm_stop);
+//             double average_ns = scan_ns / block_counter;
             fprintf(stderr, "The write to shared memory for %d elements took %ld ns\n", BIN_SIZE, ELAPSED_NS(shm_start, shm_stop));
-            fprintf(stderr, "The running average after %d writes is %f ns\n", block_counter, average_ns);
-            fprintf(stderr, "-----\n");
+//             fprintf(stderr, "The running average after %d writes is %f ns\n", block_counter, average_ns);
+//             fprintf(stderr, "-----\n");
 #endif
 
             clock_gettime(CLOCK_MONOTONIC, &loop_end);

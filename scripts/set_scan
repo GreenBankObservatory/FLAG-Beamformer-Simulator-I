@@ -99,11 +99,12 @@ trap control_c SIGINT
 # Write null files to our FIFOs so that they don't have any unexpected commands in them
 echo "> Resetting control FIFOs"
 cat /dev/null > /tmp/tchamber/fake_gpu_control
-cat /dev/null > /tmp/tchamber/vegas_fits_control
+# cat /dev/null > /tmp/tchamber/vegas_fits_control
 
 # Run the fake_gpu
 echo "> Starting the fake_gpu hashpipe plugin"
-taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread &
+# taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread &
+taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread -c 2 null_output_thread &
 hash_pid=$!
 echo ">   The PID of the hashpipe instance running fake_gpu is: ${hash_pid}"
 
@@ -118,13 +119,13 @@ else
     exit
 fi
 
-# Run the fits writer
-echo "> Running fits writer"
-# /home/sandboxes/tchamber/vegas_devel3/vegas_devel/src/dibas_fits_writer/vegasFitsWriter &
-# /home/sandboxes/tchamber/bf_fits/beamformer_devel/src/dibas_fits_writer/vegasFitsWriter &
-/home/sandboxes/tchamber/FLAG-Beamformer-Devel/src/dibas_fits_writer/vegasFitsWriter &
-vegas_pid=$!
-echo ">   The PID of the vegasFitsWriter is: ${vegas_pid}"
+# # Run the fits writer
+# echo "> Running fits writer"
+# # /home/sandboxes/tchamber/vegas_devel3/vegas_devel/src/dibas_fits_writer/vegasFitsWriter &
+# # /home/sandboxes/tchamber/bf_fits/beamformer_devel/src/dibas_fits_writer/vegasFitsWriter &
+# /home/sandboxes/tchamber/FLAG-Beamformer-Devel/src/dibas_fits_writer/vegasFitsWriter &
+# vegas_pid=$!
+# echo ">   The PID of the vegasFitsWriter is: ${vegas_pid}"
 
 sleep .1
 echo -e "\n> READY TO START SCANNING!"
