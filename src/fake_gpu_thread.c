@@ -337,7 +337,8 @@ static void *run(hashpipe_thread_args_t * args)
 
 //             // Calculate time taken to write to shm
             fprintf(stderr, "Time from shm_start to shm_stop is: %ld ns\n", ELAPSED_NS(shm_start, shm_stop));
-            scan_loop_ns += ELAPSED_NS(shm_start, shm_stop););
+
+            scan_loop_ns += ELAPSED_NS(shm_start, shm_stop);
 #endif
 
             // Mark block as full
