@@ -50,7 +50,6 @@
 
 // #define DEBUG
 
-void nsleep(long ns);
 double timeval_2_mjd(timeval *tv);
 time_t dmjd_2_secs(double dmjd);
 double get_curr_time_dmjd();
@@ -364,21 +363,7 @@ static void *run(hashpipe_thread_args_t * args)
             }
             clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &sleep_until, NULL);
 
-            // TODO: Verify that this block is still valid after changing to clock_nanosleep
-//             int64_t delay = ELAPSED_NS(loop_end, sleep_until);
-//             if (delay <= 0)
-//             {
-//                 fprintf(stderr, "WARNING: This write was %ld ns too slow\n", delay * -1);
-//             }
-//             else
-//             {
-//                 #ifdef DEBUG
-//                 fprintf(stderr, "\tThe loop has so far taken %lu ns, so we will remove this amount from our integration time:\n", loop_ns);
-//                 fprintf(stderr, "\t\t%ld - %ld = %ld\n", (uint64_t)(INT_TIME * 1000000000), loop_ns, delay);
-//                 fprintf(stderr, "\tWaiting %ld ns (%f seconds)\n", delay, (double)delay / 1000000000.0);
-//                 #endif
-// //                 nsleep(delay);
-//             }
+            // TODO: For debugging, print out how long we are waiting this cycle
 
 #ifdef DEBUG
             clock_gettime(CLOCK_MONOTONIC, &tmp_start);
@@ -448,18 +433,6 @@ static void *run(hashpipe_thread_args_t * args)
     }
 
     return THREAD_OK;
-}
-
-void nsleep(int64_t ns)
-{
-    timespec delay;
-
-//     delay.tv_sec = ns / 1000000000;
-//     delay.tv_nsec = ns % 1000000000;
-    delay.tv_sec = 0;
-    delay.tv_nsec = ns;
-
-    nanosleep(&delay, NULL);
 }
 
 double timeval_2_mjd(timeval *tv)
