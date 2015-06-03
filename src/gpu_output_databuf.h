@@ -31,23 +31,34 @@
 // The bin size is the number of elements in the lower trianglular
 //   portion of the covariance matrix
 //   (41 * 20) gives us the number of complex pair elements
-// #define BIN_SIZE (((64 * 65) / 2) + 32)
-#define BIN_SIZE 2112
+// #define GPU_BIN_SIZE (((64 * 65) / 2) + 32)
+#define GPU_BIN_SIZE 2112
 #define NONZERO_BIN_SIZE 840
+#define FITS_BIN_SIZE 820
 // #define NONZERO_BIN_SIZE (((NUM_ANTENNAS * NUM_ANTENNAS) / 2) + (NUM_ANTENNAS / 2))
-// #define BIN_SIZE (41 * 20)
-// #define BIN_SIZE 4
+// #define GPU_BIN_SIZE (41 * 20)
+// #define GPU_BIN_SIZE 4
 // This is the number of frequency channels that we will be correlating
 //   It will be either 5, 50, or 160, and probably should always be a macro
 //   For the purposes of this simulator we don't care about the input to the correlator
 //   except that the number of input channels will indicate the number of output channels
 //   That is, the total number of complex pairs we will be writing to shared memory
-//   is given as: BIN_SIZE * NUM_CHANNELS
-#define NUM_CHANNELS 160
-// #define NUM_CHANNELS 5
-#define TOTAL_DATA_SIZE (BIN_SIZE * NUM_CHANNELS * 2) //907711.000000 //862736.000000
+//   is given as: GPU_BIN_SIZE * NUM_CHANNELS
+// #define NUM_CHANNELS 160
+
 
 #define NUM_BLOCKS 4
+
+#define NUM_CHANNELS 3
+#define PACKET_RATE 60
+#define N           30
+#define INT_TIME    ((float)N / (float)PACKET_RATE)
+#define INT_TIME_NS (INT_TIME * 1000000000)
+
+#define TOTAL_DATA_SIZE (GPU_BIN_SIZE * NUM_CHANNELS * 2) //907711.000000 //862736.000000
+
+#define ELAPSED_NS(start,stop) \
+  (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
 // #define SCANLEN 5
 
 // TODO: Cache alignment???

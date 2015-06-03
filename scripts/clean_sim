@@ -35,6 +35,7 @@ if [ "$HOSTNAME" = "west" ] || [ "$HOSTNAME" = "vegas-hpc8" ]; then
     echo "> Resetting control FIFOs"
     cat /dev/null > /tmp/tchamber/fake_gpu_control
     cat /dev/null > /tmp/tchamber/vegas_fits_control
+    cat /dev/null > /tmp/tchamber/fits_writer_control
 
     count=`ls -1 *.fits 2>/dev/null | wc -l`
     if [ $count > 0 ]; then

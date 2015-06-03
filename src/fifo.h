@@ -31,6 +31,6 @@ typedef enum cmd {
 } cmd_t;
 
 int open_fifo(char *fifo_loc);
-cmd_t check_cmd();
+cmd_t check_cmd(int fifo_fd);
 
 #endif

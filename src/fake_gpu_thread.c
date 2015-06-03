@@ -54,22 +54,26 @@ double timeval_2_mjd(timeval *tv);
 time_t dmjd_2_secs(double dmjd);
 double get_curr_time_dmjd();
 
+int gpu_fifo_id;
+
 static int init(struct hashpipe_thread_args *args)
 {
     srand(time(NULL));
 
     char *fifo_loc = "/tmp/tchamber/fake_gpu_control";
-    if (open_fifo(fifo_loc) == -1)
+    gpu_fifo_id = open_fifo(fifo_loc);
+    fprintf(stderr, "FAKE GPU HAS FD %d\n", gpu_fifo_id);
+    if (gpu_fifo_id < 0)
         return -1;
 
     fprintf(stderr, "Using fake_gpu control FIFO: %s\n", fifo_loc);
     fprintf(stderr, "Data Size Stats:\n");
     fprintf(stderr, "\tNumber of channels:                           %10d channels\n", NUM_CHANNELS);
-    fprintf(stderr, "\tBin size:                                     %10d elements\n", BIN_SIZE);
+    fprintf(stderr, "\tBin size:                                     %10d elements\n", GPU_BIN_SIZE);
     fprintf(stderr, "\tElement size:                                 %10lu bytes\n", 2 * sizeof (float));
-    fprintf(stderr, "\tNumber of elements in a block:                %10d elements\n", NUM_CHANNELS * BIN_SIZE);
+    fprintf(stderr, "\tNumber of elements in a block:                %10d elements\n", NUM_CHANNELS * GPU_BIN_SIZE);
     fprintf(stderr, "\tBlock size: (num_chans * bin_size * el_size): %10lu bytes\n",
-            NUM_CHANNELS * BIN_SIZE * (2 * sizeof (float)));
+            NUM_CHANNELS * GPU_BIN_SIZE * (2 * sizeof (float)));
 
 
 
@@ -110,18 +114,6 @@ static void *run(hashpipe_thread_args_t * args)
     // The number of blocks we will write in a scan. Derived from requested_scan_length
     int num_blocks_to_write = -1;
     int block_counter = 0;
-    // packets per second received from roach
-    // const int PACKET_RATE = 303750;
-    const int PACKET_RATE = 9492; //.1875
-//     const int PACKET_RATE = 300;
-    // This is what mcnt will increment by
-    // const int N = 30;
-    const int N = 4746; // from spreadsheet
-    // Integration time in seconds
-    // This is the amount of time that we will sleep for (total) at every block write
-    const float INT_TIME = (float)N / (float)PACKET_RATE;
-    const int64_t INT_TIME_NS = INT_TIME * 1000000000;
-
 
     timespec scan_start_time, scan_stop_time;
     timespec sleep_until;
@@ -151,10 +143,12 @@ static void *run(hashpipe_thread_args_t * args)
         hashpipe_status_unlock_safe(&st);
 
         // Check for a command from the user
-        cmd = check_cmd();
+        cmd = check_cmd(gpu_fifo_id);
+        // fprintf(stderr, "fake_gpu fd: %d cmd: %d\n", gpu_fifo_id, cmd);
+        // sleep(1);
         if (cmd == START)
         {
-            fprintf(stderr, "START received!\n");
+            fprintf(stderr, "fake_gpu_thread received START!\n");
 
             hashpipe_status_lock_safe(&st);
             hgets(st.buf, "SCANSTAT", SCAN_STATUS_LENGTH, scan_status);
@@ -212,8 +206,8 @@ static void *run(hashpipe_thread_args_t * args)
             fprintf(stderr, "\tIntegration Size:    %10d samples\n", N);
             fprintf(stderr, "\tData Rate to Shared Memory:\n");
             fprintf(stderr, "\t\t%.0f bytes/second; %f Gb/s\n",
-                (NUM_CHANNELS * BIN_SIZE * (2 * sizeof (float))) / INT_TIME,
-                ((NUM_CHANNELS * BIN_SIZE * (2 * sizeof (float))) / INT_TIME) / (1024 * 1024 * 1024) * 8);
+                (NUM_CHANNELS * GPU_BIN_SIZE * (2 * sizeof (float))) / INT_TIME,
+                ((NUM_CHANNELS * GPU_BIN_SIZE * (2 * sizeof (float))) / INT_TIME) / (1024 * 1024 * 1024) * 8);
             fprintf(stderr, "\tData Rate to Disk:\n");
             fprintf(stderr, "\t\t%.0f bytes/second; %f Gb/s\n",
                 (NUM_CHANNELS * 820 * (2 * sizeof (float))) / INT_TIME,
@@ -312,7 +306,7 @@ static void *run(hashpipe_thread_args_t * args)
 #endif
 
             // Zero out our shm block's data
-            memset(db->block[block_idx].data, 0, NUM_CHANNELS * BIN_SIZE * 2);
+            memset(db->block[block_idx].data, 0, NUM_CHANNELS * GPU_BIN_SIZE * 2);
 
             // Write data to shared memory
             int i;

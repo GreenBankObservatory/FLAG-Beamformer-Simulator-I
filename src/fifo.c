@@ -31,11 +31,11 @@
 
 const int MAX_CMD_LEN = 64;
 
-int fifo_fd = -1;
+// int fifo_fd = -1;
 
 int open_fifo(char *fifo_loc)
 {
-	fifo_fd = open(fifo_loc, O_RDONLY | O_NONBLOCK);
+	int fifo_fd = open(fifo_loc, O_RDONLY | O_NONBLOCK);
 	if (fifo_fd<0)
 	{
 		fprintf(stderr, "vegas_fits_writer: Error opening control fifo %s\n", fifo_loc);
@@ -43,14 +43,16 @@ int open_fifo(char *fifo_loc)
 // 		exit(1);
 	}
 
+    fprintf(stderr, "FIFO created with fd: %d\n", fifo_fd);
 	return fifo_fd;
 }
 
-cmd_t check_cmd()
+cmd_t check_cmd(int fifo_fd)
 {
+    // fprintf(stderr, "Checking FIFO with fd: %d\n", fifo_fd);
 	char cmd[MAX_CMD_LEN];
 
-// 	fprintf(stderr, "fifo_fd: %d\n", fifo_fd);
+	// fprintf(stderr, "fifo_fd: %d\n", fifo_fd);
 
 	struct pollfd pfd[2];
         pfd[1].fd = fifo_fd;

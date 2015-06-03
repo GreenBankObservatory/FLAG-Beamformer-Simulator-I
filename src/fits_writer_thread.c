@@ -35,17 +35,30 @@
 #include <inttypes.h>
 
 #include "fitsio.h"
+#include "fifo.h"
 #include "hashpipe.h"
 #include "gpu_output_databuf.h"
 
 #define SCAN_STATUS_LENGTH 10
 
-#define ELAPSED_NS(start,stop) \
-  (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
-
 // Forward declarations for the sake of prettiness
 int fits_write_row(fitsfile *fptr, gpu_output_databuf_block_t *block, int row_num);
 fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int *st);
+
+int fits_fifo_id;
+
+static int init(struct hashpipe_thread_args *args)
+{
+    char *fifo_loc = "/tmp/tchamber/fits_writer_control";
+    fits_fifo_id = open_fifo(fifo_loc);
+    fprintf(stderr, "FITS WRITER HAS FD %d\n", fits_fifo_id);
+    if (fits_fifo_id < 0)
+        return -1;
+
+    fprintf(stderr, "Using fits_writer_thread control FIFO: %s\n", fifo_loc);
+
+    return 0;
+}
 
 static void *run(hashpipe_thread_args_t * args)
 {
@@ -55,7 +68,8 @@ static void *run(hashpipe_thread_args_t * args)
 
 	int rv;
 	int block_idx = 0;
-	int mcnt = 0;
+
+    int cmd = INVALID;
 
     struct timespec start, stop;
     // Elapsed time in ns
@@ -64,10 +78,7 @@ static void *run(hashpipe_thread_args_t * args)
     int requested_scan_length = 0;
 
 	int num_blocks_to_write = 0;
-	// packets per second
-	const int PACKET_RATE = 30300;
-	const int N = 30;
-// 	const float GPU_DELAY = N / PACKET_RATE;
+    int block_counter = 0;
 
     // The current scanning status
     char scan_status[SCAN_STATUS_LENGTH];
@@ -79,68 +90,58 @@ static void *run(hashpipe_thread_args_t * args)
     fitsfile *fptr = NULL;
     char filename[256];
 
-
-
-    hashpipe_status_lock_safe(&st);
-    // Force SCANINIT to 0 to make sure we wait for user input
-    hputi4(st.buf, "SCANINIT", 0);
-    // Set default SCANLEN
-    hputi4(st.buf, "SCANLEN", 5);
-    // Set the scan to off by default
-    hputs(st.buf, "SCANSTAT", "off");
-    hashpipe_status_unlock_safe(&st);
+    // hashpipe_status_lock_safe(&st);
+    // // Force SCANINIT to 0 to make sure we wait for user input
+    // hputi4(st.buf, "SCANINIT", 0);
+    // // Set default SCANLEN
+    // hputi4(st.buf, "SCANLEN", 5);
+    // // Set the scan to off by default
+    // hputs(st.buf, "SCANSTAT", "off");
+    // hashpipe_status_unlock_safe(&st);
 
 	while (run_threads())
 	{
-		hashpipe_status_lock_safe(&st);
-        hputs(st.buf, status_key, "waiting");
-        hgets(st.buf, "SCANSTAT", SCAN_STATUS_LENGTH, scan_status);
-        hashpipe_status_unlock_safe(&st);
 
-        // Wait for the current block to be filled
-		while ((rv=gpu_output_databuf_wait_filled(db, block_idx)) != HASHPIPE_OK)
-        {
-            if (rv==HASHPIPE_TIMEOUT) {
-                hashpipe_status_lock_safe(&st);
-                hputs(st.buf, status_key, "blocked");
-                hashpipe_status_unlock_safe(&st);
-                continue;
-            }
-            else
-            {
-                hashpipe_error(__FUNCTION__, "error waiting for free databuf");
-                pthread_exit(NULL);
-                break;
-            }
-        }
+		// hashpipe_status_lock_safe(&st);
+  //       hputs(st.buf, status_key, "waiting");
+  //       hgets(st.buf, "SCANSTAT", SCAN_STATUS_LENGTH, scan_status);
+  //       hashpipe_status_unlock_safe(&st);
+
+        
+        // fprintf(stderr, "Looping\n");
 
         // TODO: Is this the right status to be setting?
 		hashpipe_status_lock_safe(&st);
-		hputs(st.buf, status_key, "receiving");
+        hputs(st.buf, status_key, "receiving");
         hashpipe_status_unlock_safe(&st);
 
-        // If the current scan status is "off"...
-        if (strcmp(scan_status, "off") == 0)
+        cmd = check_cmd(fits_fifo_id);
+        // sleep(1);
+        // fprintf(stderr, "fits_writer_thread fd: %d, cmd: %d\n", fits_fifo_id, cmd);
+        if (cmd == START)
         {
-            // ...set the databuf to free...
-            gpu_output_databuf_set_free(db, block_idx);
-            // ...and skip to the next buffer
-            block_idx = (block_idx + 1) % NUM_BLOCKS;
-            continue;
-        }
+            fprintf(stderr, "fits_writer_thread received START!\n");
 
-        // If the user has requested that we start a scan...
-        if (strcmp(scan_status, "start") == 0)
-        {
             hashpipe_status_lock_safe(&st);
-            // ...set status to scanning...
-            hputs(st.buf, "SCANSTAT", "scanning");
+            hgets(st.buf, "SCANSTAT", SCAN_STATUS_LENGTH, scan_status);
+            hashpipe_status_unlock_safe(&st);
+
+            if (strcmp(scan_status, "scanning") == 0 || strcmp(scan_status, "committed") == 0)
+            {
+                if (strcmp(scan_status, "scanning") == 0)
+                    fprintf(stderr, "We are already in a scan\n");
+                if (strcmp(scan_status, "committed") == 0)
+                    fprintf(stderr, "We are already committed to a scan\n");
+                continue;
+            }
+
+            hashpipe_status_lock_safe(&st);
             // ...find out how long we should scan
             hgeti4(st.buf, "SCANLEN", &requested_scan_length);
             hashpipe_status_unlock_safe(&st);
 
-			// TODO: calculate number of blocks to write based on SCANLEN
-			num_blocks_to_write = (PACKET_RATE * requested_scan_length) / N;
+            // TODO: calculate number of blocks to write based on SCANLEN
+            num_blocks_to_write = (PACKET_RATE * requested_scan_length) / N;
 
             // Check to see if the scan length is correct...
             if (requested_scan_length <= 0)
@@ -156,7 +157,7 @@ static void *run(hashpipe_thread_args_t * args)
 
             // Create/open FITS file
             // TODO: Portable filenames
-            sprintf(filename, "/tmp/tchamber/sim1fits/v1/scan%d.fits", scan_num);
+            sprintf(filename, "/tmp/tchamber/sim1fits/scan%d.fits", scan_num);
             fptr = create_fits_file(filename, requested_scan_length, scan_num, &status);
             if (status)
             {
@@ -169,47 +170,57 @@ static void *run(hashpipe_thread_args_t * args)
 
             // Get the current time
             clock_gettime(CLOCK_MONOTONIC, &start);
-//             fprintf(stderr, "Starting scan at time: %ld\n", start.tv_sec);
-            fprintf(stderr, "Starting scan\n");
+            // fprintf(stderr, "Starting scan at time: %ld\n", start.tv_sec);
+            fprintf(stderr, "FITS writer is ready to write\n");
         }
-
-        // Scan status is now "scanning"
-        // So, read from shared memory
-		mcnt = db->block[block_idx].header.mcnt;
-// 		fprintf(stderr, "\nReading from block %d on mcnt %d\n", block_idx, mcnt);
 
         if (strcmp(scan_status, "scanning") == 0)
         {
-            fprintf(stderr, "Scanning. Elapsed time: %ld\n", scan_elapsed_time);
+            // Wait for the current block to be filled
+            while ((rv=gpu_output_databuf_wait_filled(db, block_idx)) != HASHPIPE_OK)
+            {
+                if (rv==HASHPIPE_TIMEOUT) {
+                    hashpipe_status_lock_safe(&st);
+                    hputs(st.buf, status_key, "blocked");
+                    hashpipe_status_unlock_safe(&st);
+                    continue;
+                }
+                else
+                {
+                    hashpipe_error(__FUNCTION__, "error waiting for free databuf");
+                    pthread_exit(NULL);
+                    break;
+                }
+            }
+
+            fprintf(stderr, "Writing a row to FITS. Elapsed time: %ld\n", scan_elapsed_time);
 
             // write FITS data!
 //             fprintf(stderr, "writing row of data\n");
+
+            // mcnt = db->block[block_idx].header.mcnt;
             fits_write_row(fptr, &(db->block[block_idx]), row_num++);
 
             clock_gettime(CLOCK_MONOTONIC, &stop);
             scan_elapsed_time = ELAPSED_NS(start, stop);
 
             // If we have scanned for the designated amount of time...
-			// This is converting ns to sec since the scan duration is specified in seconds
-			// TODO: surely there is a better place to do this
-            if (scan_elapsed_time >= ((uint64_t) requested_scan_length) * 1000 * 1000 * 1000)
+            // This is converting ns to sec since the scan duration is specified in seconds
+            // TODO: surely there is a better place to do this
+            if (block_counter >= num_blocks_to_write)
             {
                 // ...write to disk
-                fprintf(stderr, "This is where we write a FITS file to disk\n");
+                fprintf(stderr, "Closing FITS file\n");
                 // write last data row, close FITS file
                 fits_close_file(fptr, &status);
                 if (status)          /* print any error messages */
                   fits_report_error(stderr, status);
 
                 scan_elapsed_time = 0;
-                hputs(st.buf, "SCANSTAT", "off");
-
-                //debug
-//                 int i;
-//                 for (i = 0; i < NUM_ANTENNAS; i++) {
-//                     fprintf(stderr, "\tdb->block[%d].data[%d]: %d\n", block_idx, i, db->block[block_idx].data[i]);
-//                 }
+                // hputs(st.buf, "SCANSTAT", "off");
             }
+
+            block_counter++;
         }
 
 		// Mark block as free
@@ -229,7 +240,7 @@ static void *run(hashpipe_thread_args_t * args)
 static hashpipe_thread_desc_t fits_writer_thread = {
     name: "fits_writer_thread",
     skey: "TESTSTAT",
-    init: NULL,
+    init: init,
     run:  run,
     ibuf_desc: {gpu_output_databuf_create},
     obuf_desc: {NULL}
@@ -241,7 +252,7 @@ static __attribute__((constructor)) void ctor()
 }
 
 fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int *st) {
-    printf("create_fits_file\n");
+    fprintf(stderr, "create_fits_file\n");
     fitsfile *fptr;
     int status = 0;
 
@@ -291,7 +302,7 @@ fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int 
     // Use this to allow variable bin sizes
     // TODO: Should this only be 3 chars long?
     char data_form[10];
-    sprintf(data_form, "%dC", BIN_SIZE * NUM_CHANNELS);
+    sprintf(data_form, "%dC", GPU_BIN_SIZE * NUM_CHANNELS);
     //debug
     fprintf(stderr, "data_form: %s\n", data_form);
 
@@ -317,6 +328,7 @@ fitsfile *create_fits_file(char *filename, int scan_duration, int scan_num, int 
     if (status)          /* print any error messages */
       fits_report_error(stderr, status);
 
+    fprintf(stderr, "Created FITS file\n");
     *st = status;
     return(fptr);
 }
@@ -326,7 +338,7 @@ int fits_write_row(fitsfile *fptr, gpu_output_databuf_block_t *block, int row_nu
     int status = 0;
 	int *mcnt = &(block->header.mcnt);
 	float *data = block->data;
-    long data_elements = BIN_SIZE * NUM_CHANNELS;
+    long data_elements = GPU_BIN_SIZE * NUM_CHANNELS;
 	fprintf(stderr, "num data els: %ld\n", data_elements);
 
 	fits_write_col_int(fptr, 1,row_num + 1, 1, 1, mcnt, &status);
@@ -338,6 +350,8 @@ int fits_write_row(fitsfile *fptr, gpu_output_databuf_block_t *block, int row_nu
 
     if (status)
       fits_report_error(stderr, status);
+
+    fprintf(stderr, "what\n");
 
     return(status);
 
