@@ -43,8 +43,8 @@
 //   except that the number of input channels will indicate the number of output channels
 //   That is, the total number of complex pairs we will be writing to shared memory
 //   is given as: BIN_SIZE * NUM_CHANNELS
-// #define NUM_CHANNELS 160
-#define NUM_CHANNELS 5
+#define NUM_CHANNELS 160
+// #define NUM_CHANNELS 5
 #define TOTAL_DATA_SIZE (BIN_SIZE * NUM_CHANNELS * 2) //907711.000000 //862736.000000
 
 #define NUM_BLOCKS 4
