@@ -28,7 +28,7 @@
 // #include "config.h"
 // #define CACHE_ALIGNMENT 128
 #define NUM_ANTENNAS 40
-// The bin size is the number of elements in the lower trianglular
+// The bin size is the number of elements in the lower triangular
 //   portion of the covariance matrix
 //   (41 * 20) gives us the number of complex pair elements
 // #define GPU_BIN_SIZE (((64 * 65) / 2) + 32)
@@ -49,8 +49,8 @@
 
 #define NUM_BLOCKS 4
 
-#define NUM_CHANNELS 3
-#define PACKET_RATE 60
+#define NUM_CHANNELS 5
+#define PACKET_RATE 600
 #define N           30
 #define INT_TIME    ((float)N / (float)PACKET_RATE)
 #define INT_TIME_NS (INT_TIME * 1000000000)
