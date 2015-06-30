@@ -363,6 +363,8 @@ static void *run(hashpipe_thread_args_t * args)
                             //   and write it to the imaginary half of the pair
                             // This allows us to write a ramp of ordered pairs to FITS
                             int imag_coord = real_coord;
+                            // Account for the four diffent elements within
+                            //   each block
                             if (l == 0)
                             {
                                 real_coord += 2 * j;
@@ -384,7 +386,6 @@ static void *run(hashpipe_thread_args_t * args)
                                 imag_coord += 2 * k + 1;
                             }
                             
-                            // fprintf(stderr, "real: %d, imag: %d\n", real_coord, imag_coord);
                             // Now we simply write the data itself to the proper block
                             db->block[block_idx].data[real_i] = real_coord;
                             db->block[block_idx].data[imag_i] = imag_coord;
