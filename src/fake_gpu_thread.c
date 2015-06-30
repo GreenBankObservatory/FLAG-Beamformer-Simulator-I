@@ -345,58 +345,51 @@ static void *run(hashpipe_thread_args_t * args)
                     int k;
                     for (k = 0; k < j+1; k++)
                     {
-                        // We derive a 'real index' from the element counter.
-                        // This is the index of the real half of the complex pair
-                        int real_i = elem_i * 2;
-                        // This is the index of the imaginary half of the complex pair
-                        int imag_i = real_i + 1;
-                        // We derive the 'column' portion of the coordinate
-                        //   and write it to the real half of the pair
-                        int real_coord = 2 * j + (DIM * block_idx);
-                        // We derive the 'row' portion of the coordinate
-                        //   and write it to the imaginary half of the pair
-                        // This allows us to write a ramp of ordered pairs to FITS
-                        int imag_coord = 2 * k + (DIM * block_idx);
-                        // fprintf(stderr, "real: %d, imag: %d\n", real_coord, imag_coord);
-                        // Now we simply write the data itself to the proper block
-                        db->block[block_idx].data[real_i] = real_coord;
-                        db->block[block_idx].data[imag_i] = imag_coord;
-                        elem_i++;
+                        int l;
+                        for (l = 0; l < 4; l++)
+                        {
+                            // We derive a 'real index' from the element counter.
+                            // This is the index of the real half of the complex pair
+                            int real_i = elem_i * 2;
+                            // This is the index of the imaginary half of the complex pair
+                            int imag_i = real_i + 1;
 
-                        /* 
-                        This is where the code duplication begins. There are
-                        four nearly identical operations here, but I haven't
-                        had the time to create a generic algorithm to replace
-                        them, so they exist as discrete operations
-                        */
-
-                        real_i = elem_i * 2;
-                        imag_i = real_i + 1;
-                        real_coord = 2 * j + (DIM * block_idx);
-                        imag_coord = 2 * k + 1 + (DIM * block_idx);
-                        // fprintf(stderr, "real: %d, imag: %d\n", real_coord, imag_coord);
-                        db->block[block_idx].data[real_i] = real_coord;
-                        db->block[block_idx].data[imag_i] = imag_coord;
-                        elem_i++;
-
-                        real_i = elem_i * 2;
-                        imag_i = real_i + 1;
-                        real_coord = 2 * j + 1 + (DIM * block_idx);
-                        imag_coord = 2 * k + (DIM * block_idx);
-                        // fprintf(stderr, "real: %d, imag: %d\n", real_coord, imag_coord);
-                        db->block[block_idx].data[real_i] = real_coord;
-                        db->block[block_idx].data[imag_i] = imag_coord;
-                        elem_i++;
-
-                        real_i = elem_i * 2;
-                        imag_i = real_i + 1;
-                        real_coord = 2 * j + 1 + (DIM * block_idx);
-                        imag_coord = 2 * k + 1 + (DIM * block_idx);
-                        // fprintf(stderr, "real: %d, imag: %d\n", real_coord, imag_coord);
-                        // fprintf(stderr, "real_i: %d, imag_i: %d\n", real_i*2, real_i*2+1);
-                        db->block[block_idx].data[real_i] = real_coord;
-                        db->block[block_idx].data[imag_i] = imag_coord;
-                        elem_i++;
+                            // We will derive the 'column' portion of the coordinate
+                            //   and write it to the real half of the pair
+                            // We start with an offset in order to create a smooth
+                            //   ramp between the different blocks
+                            int real_coord = DIM * 2 * block_idx;
+                            // We will derive the 'row' portion of the coordinate
+                            //   and write it to the imaginary half of the pair
+                            // This allows us to write a ramp of ordered pairs to FITS
+                            int imag_coord = real_coord;
+                            if (l == 0)
+                            {
+                                real_coord += 2 * j;
+                                imag_coord += 2 * k;
+                            }
+                            else if (l == 1)
+                            {
+                                real_coord += 2 * j;
+                                imag_coord += 2 * k + 1;
+                            }
+                            else if (l == 2)
+                            {
+                                real_coord += 2 * j + 1;
+                                imag_coord += 2 * k;
+                            }
+                            else if (l == 3)
+                            {
+                                real_coord += 2 * j + 1;
+                                imag_coord += 2 * k + 1;
+                            }
+                            
+                            // fprintf(stderr, "real: %d, imag: %d\n", real_coord, imag_coord);
+                            // Now we simply write the data itself to the proper block
+                            db->block[block_idx].data[real_i] = real_coord;
+                            db->block[block_idx].data[imag_i] = imag_coord;
+                            elem_i++;
+                        }
                     }
                 }
             }
