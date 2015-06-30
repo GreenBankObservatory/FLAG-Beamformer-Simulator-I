@@ -40,6 +40,7 @@
 #include "gpu_output_databuf.h"
 #include "fitsio.h"
 #include "fifo.h"
+#include "matrix_map.h"
 
 #define SCAN_STATUS_LENGTH 10
 
@@ -55,6 +56,8 @@ time_t dmjd_2_secs(double dmjd);
 double get_curr_time_dmjd();
 
 int gpu_fifo_id;
+
+// int old_to_new_map[GPU_BIN_SIZE];
 
 static int init(struct hashpipe_thread_args *args)
 {
@@ -86,8 +89,21 @@ static int init(struct hashpipe_thread_args *args)
     hputi4(st.buf, "SCANLEN", 2);
     // Set the scan to off by default
     hputs(st.buf, "SCANSTAT", "off");
+    // Initialize start time to impossible value
     hputr8(st.buf, "STRTDMJD", -1.0);
     hashpipe_status_unlock_safe(&st);
+
+    // get_mapping_C(GPU_BIN_SIZE, old_to_new_map);
+
+    // fprintf(stderr, "Mapping: \n");
+
+    // int i;
+    // for (i = 0; i < GPU_BIN_SIZE; ++i)
+    // {
+    //     fprintf(stderr, "%d ", old_to_new_map[i]);
+    // }
+
+    // fprintf(stderr, "\n");
 
     return 0;
 }
@@ -308,22 +324,80 @@ static void *run(hashpipe_thread_args_t * args)
             // Zero out our shm block's data
             memset(db->block[block_idx].data, 0, NUM_CHANNELS * GPU_BIN_SIZE * 2);
 
-            // Write data to shared memory
+            #define DIM 20
+
+            // I am so sorry in advance; I really just don't have time to remove
+            //   the horrendous code duplication here
+            // This is the element index. It tracks the index of the current
+            //   complex pair
+            int elem_i = 0;
+            // This is the 'channel' loop
             int i;
             for (i = 0; i < NUM_CHANNELS; i++)
             {
+                // This is the 'column' loop
                 int j;
-                for (j = 0; j < NONZERO_BIN_SIZE * 2; j += 2)
+                for (j = 0; j < DIM; j++)
                 {
-                    // index counters
-                    int real_i = j + (i * NONZERO_BIN_SIZE * 2);
-                    int imag_i = j + (i * NONZERO_BIN_SIZE * 2) + 1;
-                    // real half of pair
-                    db->block[block_idx].data[real_i] = j/2 + (block_idx * NONZERO_BIN_SIZE);
-                    // imaginary half of pair
-                    db->block[block_idx].data[imag_i] = j/2 + .5 + (block_idx * NONZERO_BIN_SIZE);
-//                     fprintf(stderr, "wrote real to %d: %f\n", real_i, db->block[block_idx].data[real_i]);
-//                     fprintf(stderr, "wrote imag to %d: %f\n", imag_i, db->block[block_idx].data[imag_i]);
+                    // This is the 'row' loop
+                    // Together the 'column' and 'row' loops track our position
+                    //   (as an ordered pair) in the matrix
+                    int k;
+                    for (k = 0; k < j+1; k++)
+                    {
+                        // We derive a 'real index' from the element counter.
+                        // This is the index of the real half of the complex pair
+                        int real_i = elem_i * 2;
+                        // This is the index of the imaginary half of the complex pair
+                        int imag_i = real_i + 1;
+                        // We derive the 'column' portion of the coordinate
+                        //   and write it to the real half of the pair
+                        int real_coord = 2 * j + (DIM * block_idx);
+                        // We derive the 'row' portion of the coordinate
+                        //   and write it to the imaginary half of the pair
+                        // This allows us to write a ramp of ordered pairs to FITS
+                        int imag_coord = 2 * k + (DIM * block_idx);
+                        // fprintf(stderr, "real: %d, imag: %d\n", real_coord, imag_coord);
+                        // Now we simply write the data itself to the proper block
+                        db->block[block_idx].data[real_i] = real_coord;
+                        db->block[block_idx].data[imag_i] = imag_coord;
+                        elem_i++;
+
+                        /* 
+                        This is where the code duplication begins. There are
+                        four nearly identical operations here, but I haven't
+                        had the time to create a generic algorithm to replace
+                        them, so they exist as discrete operations
+                        */
+
+                        real_i = elem_i * 2;
+                        imag_i = real_i + 1;
+                        real_coord = 2 * j + (DIM * block_idx);
+                        imag_coord = 2 * k + 1 + (DIM * block_idx);
+                        // fprintf(stderr, "real: %d, imag: %d\n", real_coord, imag_coord);
+                        db->block[block_idx].data[real_i] = real_coord;
+                        db->block[block_idx].data[imag_i] = imag_coord;
+                        elem_i++;
+
+                        real_i = elem_i * 2;
+                        imag_i = real_i + 1;
+                        real_coord = 2 * j + 1 + (DIM * block_idx);
+                        imag_coord = 2 * k + (DIM * block_idx);
+                        // fprintf(stderr, "real: %d, imag: %d\n", real_coord, imag_coord);
+                        db->block[block_idx].data[real_i] = real_coord;
+                        db->block[block_idx].data[imag_i] = imag_coord;
+                        elem_i++;
+
+                        real_i = elem_i * 2;
+                        imag_i = real_i + 1;
+                        real_coord = 2 * j + 1 + (DIM * block_idx);
+                        imag_coord = 2 * k + 1 + (DIM * block_idx);
+                        // fprintf(stderr, "real: %d, imag: %d\n", real_coord, imag_coord);
+                        // fprintf(stderr, "real_i: %d, imag_i: %d\n", real_i*2, real_i*2+1);
+                        db->block[block_idx].data[real_i] = real_coord;
+                        db->block[block_idx].data[imag_i] = imag_coord;
+                        elem_i++;
+                    }
                 }
             }
 
