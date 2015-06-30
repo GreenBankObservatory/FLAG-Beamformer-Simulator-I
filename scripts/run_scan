@@ -24,7 +24,7 @@
 
 # Runs dmjd script to set up start times; passes all our arguments to it
 
-echo "> Checking to see if hashpipe and vegasFitsWriter are running"
+echo "> Checking to see if hashpipe and bfFitsWriter are running"
 
 do_exit=0
 
@@ -35,10 +35,10 @@ if [ $? -eq 1 ]; then
     do_exit=1
 fi
 
-# Make sure there is at least one processe named vegasFitsWriter being run by the current user
-pgrep -u $USER vegasFitsWriter > /dev/null
+# Make sure there is at least one processe named bfFitsWriter being run by the current user
+pgrep -u $USER bfFitsWriter > /dev/null
 if [ $? -eq 1 ]; then
-    echo ">   ERROR: vegasFitsWriter is not running for the current user"
+    echo ">   ERROR: bfFitsWriter is not running for the current user"
     do_exit=1
 fi
 
@@ -59,5 +59,5 @@ echo "> Starting the scan"
 echo ">   Sending the command \"$cmd\" to fake_gpu"
 echo "$cmd" >> /tmp/tchamber/fake_gpu_control
 
-echo ">   Sending the command \"$cmd\" to vegasFitsWriter"
+echo ">   Sending the command \"$cmd\" to bfFitsWriter"
 echo "$cmd" >> /tmp/tchamber/vegas_fits_control

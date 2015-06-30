@@ -22,13 +22,13 @@
 # P. O. Box 2
 # Green Bank, WV 24944-0002 USA
 
-# WARNING: This script will ruthlessly murder any process whose name matches the strings "hashpipe" or "vegasFitsWriter"
+# WARNING: This script will ruthlessly murder any process whose name matches the strings "hashpipe" or "bfFitsWriter"
 # WARNING: This script relies on a custom "pkill" script; it is probably not portable
 
 if [ "$HOSTNAME" = "west" ] || [ "$HOSTNAME" = "vegas-hpc8" ]; then
-    echo "> Killing all instances of hashpipe and vegasFitsWriter owned by the current user:"
+    echo "> Killing all instances of hashpipe and bfFitsWriter owned by the current user:"
     pkill "hashpipe"
-    pkill "vegasFitsWriter"
+    pkill "bfFitsWriter"
     echo ""
     clean_ipc
 
