@@ -40,7 +40,7 @@
 #include "gpu_output_databuf.h"
 #include "fitsio.h"
 #include "fifo.h"
-#include "matrix_map.h"
+//#include "matrix_map.h"
 
 #define SCAN_STATUS_LENGTH 10
 
