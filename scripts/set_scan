@@ -98,8 +98,8 @@ trap control_c SIGINT
 
 # Write null files to our FIFOs so that they don't have any unexpected commands in them
 echo "> Resetting control FIFOs"
-cat /dev/null > /tmp/tchamber/fake_gpu_control
-cat /dev/null > /tmp/tchamber/vegas_fits_control
+cat /dev/null > /tmp/gpu_fifo_npingel_0
+cat /dev/null > /tmp/fits_fifo_npingel_0
 
 # Run the fake_gpu
 echo "> Starting the fake_gpu hashpipe plugin"
@@ -123,7 +123,7 @@ fi
 echo "> Running fits writer"
 # /home/sandboxes/tchamber/vegas_devel3/vegas_devel/src/dibas_fits_writer/bfFitsWriter &
 # /home/sandboxes/tchamber/bf_fits/beamformer_devel/src/dibas_fits_writer/bfFitsWriter &
-/home/sandboxes/tchamber/FLAG-Beamformer-Devel/src/dibas_fits_writer/bfFitsWriter &
+/users/npingel/FLAG/bf/repos/FLAG-Beamformer-Devel/src/dibas_fits_writer/bfFitsWriter &
 fits_pid=$!
 echo ">   The PID of the bfFitsWriter is: ${fits_pid}"
 

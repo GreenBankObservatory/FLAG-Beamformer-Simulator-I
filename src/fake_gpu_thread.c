@@ -66,7 +66,8 @@ static int init(struct hashpipe_thread_args *args)
     //char *fifo_loc = "/tmp/tchamber/fake_gpu_control";
     //gpu_fifo_id = open_fifo(fifo_loc);
     char fifo_filename[256];
-    sprintf(fifo_filename, "/tmp/fake_gpu_control_%d", args->instance_id);    
+    char *user = getenv("USER");
+    sprintf(fifo_filename, "/tmp/gpu_fifo_%s_%d", user,args->instance_id);    
     fprintf(stderr, "Using fake_gpu control FIFO: %s\n", fifo_filename);
 
     gpu_fifo_id = open_fifo(fifo_filename);

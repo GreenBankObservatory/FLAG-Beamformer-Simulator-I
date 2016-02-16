@@ -57,7 +57,9 @@ fi
 cmd="START"
 echo "> Starting the scan"
 echo ">   Sending the command \"$cmd\" to fake_gpu"
-echo "$cmd" >> /tmp/tchamber/fake_gpu_control
+#echo "$cmd" >> /tmp/tchamber/fake_gpu_control
+echo "$cmd" >> /tmp/gpu_fifo_npingel_0
 
 echo ">   Sending the command \"$cmd\" to bfFitsWriter"
-echo "$cmd" >> /tmp/tchamber/vegas_fits_control
+#echo "$cmd" >> /tmp/tchamber/vegas_fits_control
+echo "$cmd" >> /tmp/fits_fifo_npingel_0
