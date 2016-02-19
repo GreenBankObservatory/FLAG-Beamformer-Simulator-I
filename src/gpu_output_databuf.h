@@ -44,12 +44,12 @@
 //   except that the number of input channels will indicate the number of output channels
 //   That is, the total number of complex pairs we will be writing to shared memory
 //   is given as: GPU_BIN_SIZE * NUM_CHANNELS
-// #define NUM_CHANNELS 160
+ #define NUM_CHANNELS 160
 
 
 #define NUM_BLOCKS 4
 
-#define NUM_CHANNELS 5
+//#define NUM_CHANNELS 5
 #define PACKET_RATE 600
 #define N           30
 #define INT_TIME    ((float)N / (float)PACKET_RATE)
