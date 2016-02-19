@@ -329,7 +329,57 @@ static void *run(hashpipe_thread_args_t * args)
 
             // Zero out our shm block's data
             memset(db->block[block_idx].data, 0, NUM_CHANNELS * GPU_BIN_SIZE * 2);
-
+	    //Implement ramp which lists correlation pair corresponding to position in output array (NM)
+	    
+	    //This is the channel loop
+	    int channel;
+	    for (channel = 0; channel < NUM_CHANNELS; channel++)
+ 	    {
+		//increment element counter to include zeros tacked on to GPU output:
+		int elem_i=0;
+		//This is the row loop
+	        int row;
+  		for (row = 0; row < NUM_ANTENNAS; row+=2)
+		{
+		    //This is the column loop
+		    int col;
+		    for (col = 0; col < row+2; col+=2)
+		    {
+		        int real_coord;
+		        int imag_coord;
+		        int l;
+		        // This is the 'square' loop where we determine correlation pair inside 4-element square.
+		        for (l=0; l < 4; l++)
+		        {
+		    	    real_coord = row; 
+			    imag_coord = col;  
+			    int real_i = elem_i*2;
+			    int imag_i = real_i+1;
+			    if (l==1)
+			    {
+			        imag_coord++;
+			    }
+			    else if (l==2)
+			    {
+			        real_coord++;	 
+			    }
+			    else if (l==3)
+			    {
+			        real_coord++;
+			        imag_coord++;
+			    }
+			    //write correlation pair
+			    db->block[block_idx].data[(channel*2*GPU_BIN_SIZE)+real_i] = real_coord;
+                            db->block[block_idx].data[(channel*2*GPU_BIN_SIZE)+imag_i] = imag_coord;
+                            elem_i++;	   
+			}
+		    }
+		}
+	    }	
+			
+		        
+		        
+	    /*
             #define DIM 20
 
             // I am so sorry in advance; I really just don't have time to remove
@@ -400,7 +450,7 @@ static void *run(hashpipe_thread_args_t * args)
                     }
                 }
             }
-
+	    */
 #ifdef DEBUG
             clock_gettime(CLOCK_MONOTONIC, &shm_stop);
 
