@@ -31,6 +31,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <sys/time.h>
+#include <time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <errno.h>
@@ -58,6 +59,7 @@ double get_curr_time_dmjd();
 int gpu_fifo_id;
 
 // int old_to_new_map[GPU_BIN_SIZE];
+
 
 static int init(struct hashpipe_thread_args *args)
 {
@@ -327,15 +329,174 @@ static void *run(hashpipe_thread_args_t * args)
             scan_loop_ns += ELAPSED_NS(blocked_stop, shm_start);
 #endif
 
+	    // Define a random number generator
+	    #define IM1 2147483563
+	    #define IM2 2147483399
+	    #define AM (1.0/IM1)
+	    #define IMM1 (IM1-1)
+	    #define IA1 40014
+	    #define IA2 40692
+	    #define IQ1 53668
+	    #define IQ2 52774
+	    #define IR1 12211
+	    #define IR2 3791
+	    #define NTAB 32
+	    #define NDIV (1+IMM1/NTAB)
+	    #define EPS 1.2e-7
+	    #define RNMX (1.0-EPS)
+
+	    float ran2(long *idum)
+	    {
+		    int j;
+		    long k;
+		    static long idum2=123456789;
+		    static long iy=0;
+		    static long iv[NTAB];
+		    float temp;
+
+		    if (*idum <= 0) {
+			    if (-(*idum) < 1) *idum=1;
+			    else *idum = -(*idum);
+			    idum2=(*idum);
+			    for (j=NTAB+7;j>=0;j--) {
+				    k=(*idum)/IQ1;
+				    *idum=IA1*(*idum-k*IQ1)-k*IR1;
+				    if (*idum < 0) *idum += IM1;
+				    if (j < NTAB) iv[j] = *idum;
+			    }
+			    iy=iv[0];
+		    }
+		    k=(*idum)/IQ1;
+
+		  *idum=IA1*(*idum-k*IQ1)-k*IR1;
+		    if (*idum < 0) *idum += IM1;
+		    k=idum2/IQ2;
+		    idum2=IA2*(idum2-k*IQ2)-k*IR2;
+		    if (idum2 < 0) idum2 += IM2;
+		    j=iy/NDIV;
+		    iy=iv[j]-idum2;
+		    iv[j] = *idum;
+		    if (iy < 1) iy += IMM1;
+		    if ((temp=AM*iy) > RNMX) return RNMX;
+		    else return temp;
+	    }
+	    #undef IM1
+	    #undef IM2
+	    #undef AM
+	    #undef IMM1
+	    #undef IA1
+	    #undef IA2
+	    #undef IQ1
+	    #undef IQ2
+	    #undef IR1
+	    #undef IR2
+	    #undef NTAB
+	    #undef NDIV
+	    #undef EPS
+	    #undef RNMX
+	    float gasdev(long *idum)
+	    {
+		    static int iset=0;
+		    static float gset;
+		    float fac,rsq,v1,v2;
+
+		    if  (iset == 0) {
+			    do {
+				    v1=2.0*ran2(idum)-1.0;
+				    v2=2.0*ran2(idum)-1.0;
+				    rsq=v1*v1+v2*v2;
+			    } while (rsq >= 1.0 || rsq == 0.0);
+			    fac=sqrt(-2.0*log(rsq)/rsq);
+			    gset=v1*fac;
+			    iset=1;
+			    return v2*fac;
+			    } else {
+			    iset=0;
+			    return gset;
+		    }
+	    }
+
+
+//Funtion to generate white noise covariance matrix corresponding to one frequency channel
+
+	    void covarianceGen(float covarianceMatrix[NUM_ANTENNAS][NUM_ANTENNAS])
+	    {
+		//printf("Generating random covariance matrix\n");
+		//initialize array to hold random result
+		float ranArr_col[30][40] = {{0.0}};
+		float ranArr_row[40][30] = {{0.0}};
+		//initialize generator and distribution return
+		//struct timeval tim;
+		//gettimeofday(&time,NULL);
+		//long seed=(time.tv_sec*1000)+(time.tv_usec/1000);
+		long seed = 0;
+		seed = time(0);
+
+		//fill col vector with random Gaussian values
+		int i;
+		int j;
+		for (i=0; i < 40; i++)
+		{
+		    for (j=0; j< 30;j++)
+		    {
+		        float randVal = gasdev(&seed);
+		        ranArr_col[j][i] = randVal;
+			//printf("random Value: %f\n",randVal);
+		    }
+		}
+		//fill transposed row vector
+		for (i=0; i < 40; i++)
+		{
+		    for (j=0; j < 30; j++)
+		    {
+			ranArr_row[i][j] = ranArr_col[j][i];
+		    }
+		}
+		//fill return Matrix through dot product
+		int l;
+		int k;
+		float dotVal;
+		for (i=0; i < NUM_ANTENNAS; i++)
+		{
+		    for (j=0; j < NUM_ANTENNAS;j++)
+		    {
+			float rowVec[N];
+			float colVec[N];
+			for (l=0; l < N; l++)
+			{
+			    rowVec[l] = ranArr_row[j][l];
+			}
+			for (k=0;k < N;k++)
+			{
+			    colVec[k] = ranArr_col[k][i];
+			}
+			dotVal=0;
+			int z;
+			for (z=0;z < N; z++)
+			{
+			    dotVal+=colVec[z]*rowVec[z];
+			}
+			covarianceMatrix[i][j] = dotVal*(float)1/N;
+		    }
+		}
+	    }
+
+
             // Zero out our shm block's data
             memset(db->block[block_idx].data, 0, NUM_CHANNELS * GPU_BIN_SIZE * 2);
-	    //Implement ramp which lists correlation pair corresponding to position in output array (NM)
-	    
-	    //This is the channel loop
+
+
+	    //Implement ramp which lists correlation pair corresponding to position in output array (NM
+            //This is the channel loop
 	    int channel;
 	    for (channel = 0; channel < NUM_CHANNELS; channel++)
- 	    {
-		//increment element counter to include zeros tacked on to GPU output:
+ 	    {    
+  		//float covarianceMatrix[NUM_ANTENNAS][NUM_ANTENNAS]={{0}};
+	        //covarianceGen(&covarianceMatrix);
+		float covarianceMatrix[NUM_ANTENNAS][NUM_ANTENNAS]={{0}};
+                covarianceGen(covarianceMatrix);
+ 		//printf("first Element %f\n",covarianceMatrix[5][5]);
+      		//increment element counter to include zeros tacked on to GPU output:
 		int elem_i=0;
 		//This is the row loop
 	        int row;
@@ -369,9 +530,13 @@ static void *run(hashpipe_thread_args_t * args)
 			        imag_coord++;
 			    }
 			    //write correlation pair
-			    db->block[block_idx].data[(channel*2*GPU_BIN_SIZE)+real_i] = real_coord;
-                            db->block[block_idx].data[(channel*2*GPU_BIN_SIZE)+imag_i] = imag_coord;
-                            elem_i++;	   
+			    //db->block[block_idx].data[(channel*2*GPU_BIN_SIZE)+real_i] = real_coord;
+                            //db->block[block_idx].data[(channel*2*GPU_BIN_SIZE)+imag_i] = imag_coord;
+                            //Write correlation product
+			    db->block[block_idx].data[(channel*2*GPU_BIN_SIZE)+real_i] = covarianceMatrix[real_coord][imag_coord];
+                            db->block[block_idx].data[(channel*2*GPU_BIN_SIZE)+imag_i] = 0.0;
+			    //printf("covariance Matrix Element: %f\n",covarianceMatrix[real_coord][imag_coord]);
+    			    elem_i++;	   
 			}
 		    }
 		}
