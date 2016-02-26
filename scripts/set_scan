@@ -98,12 +98,19 @@
 
 # Write null files to our FIFOs so that they don't have any unexpected commands in them
 echo "> Resetting control FIFOs"
-cat /dev/null > /tmp/fake_gpu_control_0
-cat /dev/null > /tmp/tchamber/vegas_fits_control
+# We can hardcode the instance ID to 0 because we will only ever be running one instance of
+# hashpipe from this script
+gpu_fifo="/tmp/gpu_fifo_${USER}_0"
+fits_fifo="/tmp/fits_fifo_${USER}_0"
+rm -f $gpu_fifo
+touch $gpu_fifo
+rm -f $fits_fifo
+touch $fits_fifo
 
 # Run the fake_gpu
 echo "> Starting the fake_gpu hashpipe plugin"
-taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_psr_thread -c 2 databuf_test_thread &
+# taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_psr_thread -c 2 databuf_test_thread &
+taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread -c 2 fits_writer_thread &
 # taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread -c 2 null_output_thread &
 hash_pid=$!
 echo ">   The PID of the hashpipe instance running fake_gpu is: ${hash_pid}"

@@ -49,7 +49,9 @@ int fits_fifo_id;
 
 static int init(struct hashpipe_thread_args *args)
 {
-    char *fifo_loc = "/tmp/tchamber/fits_writer_control";
+    char *user = getenv("USER");
+    char fifo_loc[128];
+    sprintf(fifo_loc, "/tmp/fits_fifo_%s_%d", user, args->instance_id);
     fits_fifo_id = open_fifo(fifo_loc);
     fprintf(stderr, "FITS WRITER HAS FD %d\n", fits_fifo_id);
     if (fits_fifo_id < 0)
