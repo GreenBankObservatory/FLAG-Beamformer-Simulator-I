@@ -40,6 +40,7 @@
 #include "gpu_output_databuf.h"
 #include "fitsio.h"
 #include "fifo.h"
+#include "time_stuff.h"
 //#include "matrix_map.h"
 
 #define SCAN_STATUS_LENGTH 10
@@ -51,9 +52,7 @@
 
 // #define DEBUG
 
-double timeval_2_mjd(timeval *tv);
-time_t dmjd_2_secs(double dmjd);
-double get_curr_time_dmjd();
+
 
 int gpu_fifo_id;
 
@@ -504,33 +503,7 @@ static void *run(hashpipe_thread_args_t * args)
     return THREAD_OK;
 }
 
-double timeval_2_mjd(timeval *tv)
-{
-    double dmjd = tv->tv_sec / 86400 + MJD_1970_EPOCH;
 
-    dmjd += (tv->tv_sec % 86400) / 86400.0;
-
-    return dmjd;
-}
-
-// Converts a DMJD to a time_t (seconds since epoch)
-time_t dmjd_2_secs(double dmjd)
-{
-    double d;
-    double mjd;
-
-    d = modf(dmjd, &mjd);
-
-    return (86400 * (mjd - MJD_1970_EPOCH)) + (86400 * d);
-}
-
-// Gets the current time as a DMJD
-double get_curr_time_dmjd()
-{
-   timeval time;
-   gettimeofday(&time, 0);
-   return timeval_2_mjd(&time);
-}
 
 static hashpipe_thread_desc_t fake_gpu_thread = {
     name: "fake_gpu_thread",

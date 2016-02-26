@@ -22,88 +22,88 @@
 # P. O. Box 2
 # Green Bank, WV 24944-0002 USA
 
-cleanup()
-{
-    # Kill processes if they are still running
-    if [ -e /proc/${hash_pid} ]; then
-        echo "> Killing fake_gpu (PID ${hash_pid})"
-        kill ${hash_pid}
-    fi
+# cleanup()
+# {
+#     # Kill processes if they are still running
+#     if [ -e /proc/${hash_pid} ]; then
+#         echo "> Killing fake_gpu (PID ${hash_pid})"
+#         kill ${hash_pid}
+#     fi
 
-    if [ -e /proc/${fits_pid} ]; then
-        echo "> Killing bfFitsWriter (PID ${fits_pid})"
-        echo "QUIT" >> /tmp/tchamber/vegas_fits_control
-    fi
+#     if [ -e /proc/${fits_pid} ]; then
+#         echo "> Killing bfFitsWriter (PID ${fits_pid})"
+#         echo "QUIT" >> /tmp/tchamber/vegas_fits_control
+#     fi
 
-    # They should be closed by now, but let's make sure...
+#     # They should be closed by now, but let's make sure...
 
-    # Set the end time to five seconds from now
-    end=$((SECONDS+5))
-    hash_closed=0
-    fits_closed=0
-    # Loop until processes have closed or we have spent 5 seconds waiting
-    while [ $SECONDS -lt $end ] && [ $hash_closed -eq 0 ] && [ $fits_closed -eq 0 ]; do
-        # TODO: This way should be more portable/better in general; can't get it working. Fix that at some point
-#         kill -0 $hash_pid &> /dev/null
-#         echo $?
-#         if [ $? -ne 0 ]; then
+#     # Set the end time to five seconds from now
+#     end=$((SECONDS+5))
+#     hash_closed=0
+#     fits_closed=0
+#     # Loop until processes have closed or we have spent 5 seconds waiting
+#     while [ $SECONDS -lt $end ] && [ $hash_closed -eq 0 ] && [ $fits_closed -eq 0 ]; do
+#         # TODO: This way should be more portable/better in general; can't get it working. Fix that at some point
+# #         kill -0 $hash_pid &> /dev/null
+# #         echo $?
+# #         if [ $? -ne 0 ]; then
+# #             hash_closed=1
+# #         fi
+
+#         if [ -e /proc/${hash_pid} ]; then
 #             hash_closed=1
+#             echo ">   fake_gpu has exited cleanly"
 #         fi
 
-        if [ -e /proc/${hash_pid} ]; then
-            hash_closed=1
-            echo ">   fake_gpu has exited cleanly"
-        fi
+#         if [ -e /proc/${fits_pid} ]; then
+#             fits_closed=1
+#             echo ">   bfFitsWriter has exited cleanly"
+#         fi
+#     done
 
-        if [ -e /proc/${fits_pid} ]; then
-            fits_closed=1
-            echo ">   bfFitsWriter has exited cleanly"
-        fi
-    done
+#     # Now the either hashpipe and bfFitsWriter are closed or the loop has timed out
+#     # In the latter case, we will need to do some more cleanup:
+#     if [ $hash_closed -eq 0 ] || [ $fits_closed -eq 0 ]; then
+#         echo "> Timed out waiting for processes to die nicely"
+#         # If hashpipe hasn't closed nicely, ask the user if they would like to force close it
+#         if [ $hash_closed -eq 0 ]; then
+#             echo ">   hashpipe failed to close. SIGKILL? \"y\" for yes"
+#             read res
+#             if [ "${res,,}" = "y" ]; then
+#                 kill -9 $(hash_pid)
+#             fi
+#         fi
 
-    # Now the either hashpipe and bfFitsWriter are closed or the loop has timed out
-    # In the latter case, we will need to do some more cleanup:
-    if [ $hash_closed -eq 0 ] || [ $fits_closed -eq 0 ]; then
-        echo "> Timed out waiting for processes to die nicely"
-        # If hashpipe hasn't closed nicely, ask the user if they would like to force close it
-        if [ $hash_closed -eq 0 ]; then
-            echo ">   hashpipe failed to close. SIGKILL? \"y\" for yes"
-            read res
-            if [ "${res,,}" = "y" ]; then
-                kill -9 $(hash_pid)
-            fi
-        fi
-
-        # If bfFitsWriter hasn't closed nicely, ask the user if they would like to force close it
-        if [ $fits_closed -eq 0 ]; then
-            echo ">   bfFitsWriter failed to close. SIGKILL? \"y\" for yes"
-            read res
-            if [ "${res,,}" = "y" ]; then
-                kill -9 $(fits_pid)
-            fi
-        fi
-    fi
-}
+#         # If bfFitsWriter hasn't closed nicely, ask the user if they would like to force close it
+#         if [ $fits_closed -eq 0 ]; then
+#             echo ">   bfFitsWriter failed to close. SIGKILL? \"y\" for yes"
+#             read res
+#             if [ "${res,,}" = "y" ]; then
+#                 kill -9 $(fits_pid)
+#             fi
+#         fi
+#     fi
+# }
 
 # What to do when we trap SIGINT
-control_c()
-{
-    echo -e "\n> We're finished; cleaning up..."
-    cleanup
-    exit 130
-}
+# control_c()
+# {
+#     echo -e "\n> We're finished; cleaning up..."
+#     cleanup
+#     exit 130
+# }
 
 # Trap control_c to make sure that we can clean up after ourselves
-trap control_c SIGINT
+# trap control_c SIGINT
 
 # Write null files to our FIFOs so that they don't have any unexpected commands in them
 echo "> Resetting control FIFOs"
-cat /dev/null > /tmp/tchamber/fake_gpu_control
+cat /dev/null > /tmp/fake_gpu_control_0
 cat /dev/null > /tmp/tchamber/vegas_fits_control
 
 # Run the fake_gpu
 echo "> Starting the fake_gpu hashpipe plugin"
-taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread &
+taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_psr_thread -c 2 databuf_test_thread &
 # taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread -c 2 null_output_thread &
 hash_pid=$!
 echo ">   The PID of the hashpipe instance running fake_gpu is: ${hash_pid}"
@@ -119,13 +119,13 @@ else
     exit
 fi
 
-# Run the fits writer
-echo "> Running fits writer"
-# /home/sandboxes/tchamber/vegas_devel3/vegas_devel/src/dibas_fits_writer/bfFitsWriter &
-# /home/sandboxes/tchamber/bf_fits/beamformer_devel/src/dibas_fits_writer/bfFitsWriter &
-/home/sandboxes/tchamber/FLAG-Beamformer-Devel/src/dibas_fits_writer/bfFitsWriter &
-fits_pid=$!
-echo ">   The PID of the bfFitsWriter is: ${fits_pid}"
+# # Run the fits writer
+# echo "> Running fits writer"
+# # /home/sandboxes/tchamber/vegas_devel3/vegas_devel/src/dibas_fits_writer/bfFitsWriter &
+# # /home/sandboxes/tchamber/bf_fits/beamformer_devel/src/dibas_fits_writer/bfFitsWriter &
+# /home/sandboxes/tchamber/FLAG-Beamformer-Devel/src/dibas_fits_writer/bfFitsWriter &
+# fits_pid=$!
+# echo ">   The PID of the bfFitsWriter is: ${fits_pid}"
 
 sleep .1
 echo -e "\n> READY TO START SCANNING!"
@@ -140,4 +140,4 @@ while [ "${response,,}" != "quit" -a "${response,,}" != "q" ]; do
 done
 
 # We're done now; clean up
-cleanup
+# cleanup

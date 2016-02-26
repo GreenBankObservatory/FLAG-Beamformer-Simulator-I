@@ -36,11 +36,11 @@ if [ $? -eq 1 ]; then
 fi
 
 # Make sure there is at least one processe named bfFitsWriter being run by the current user
-pgrep -u $USER bfFitsWriter > /dev/null
-if [ $? -eq 1 ]; then
-    echo ">   ERROR: bfFitsWriter is not running for the current user"
-    do_exit=1
-fi
+#pgrep -u $USER bfFitsWriter > /dev/null
+#if [ $? -eq 1 ]; then
+ #   echo ">   ERROR: bfFitsWriter is not running for the current user"
+ #   do_exit=1
+#fi
 
 if [ "$do_exit" -eq 1 ]; then
     echo "> Exiting..."
@@ -57,7 +57,7 @@ fi
 cmd="START"
 echo "> Starting the scan"
 echo ">   Sending the command \"$cmd\" to fake_gpu"
-echo "$cmd" >> /tmp/tchamber/fake_gpu_control
+echo "$cmd" >> /tmp/fake_gpu_control_0
 
 echo ">   Sending the command \"$cmd\" to bfFitsWriter"
 echo "$cmd" >> /tmp/tchamber/vegas_fits_control
