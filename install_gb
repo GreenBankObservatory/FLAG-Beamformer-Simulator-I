@@ -45,5 +45,5 @@ scriptdir=$(dirname $(readlink -f $0))
 # to check full paths for validity
 HASH_DIR=$(readlink -f ../../hash)
 FAKE_GPU=$scriptdir
-# REPO_DIR=$(readlink -f $scriptdir/..)
+REPO_DIR=$(readlink -f $scriptdir/..)
 install_fake_gpu
