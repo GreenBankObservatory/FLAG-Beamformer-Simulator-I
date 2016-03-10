@@ -25,6 +25,7 @@ safe_cmd() {
 install_fake_gpu() {
     echo "Installing fake_gpu plugin..."
     safe_cmd "cd $FAKE_GPU"
+    safe_cmd "mkdir build config"
     safe_cmd "autoreconf -is"
     safe_cmd "cd build"
     safe_cmd "../configure --prefix=$HASH_DIR --with-hashpipe=$HASH_DIR"
