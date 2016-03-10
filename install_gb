@@ -1,0 +1,49 @@
+#! /bin/bash
+
+fatal_error() {
+    echo -e "\tFATAL ERROR: ${1}"
+    exit 1
+}
+
+handle_error() {
+    if [ $? -ne 0 ]; then
+        fatal_error "$1"
+    fi
+}
+
+# Given a command, execute it then check it for errors. Assumes that 0
+# is "success" and that any quotes are properly escaped
+safe_cmd() {
+    echo "---Executing: \"${1}\"---"
+    # If user has requested a dry run, don't actually execute any commands
+    if [ -z "$dryrun" ]; then
+        eval ${1}
+        handle_error "${1} failed!"
+    fi
+}
+
+install_fake_gpu() {
+    echo "Installing fake_gpu plugin..."
+    safe_cmd "cd $FAKE_GPU"
+    safe_cmd "autoreconf -is"
+    safe_cmd "cd build"
+    safe_cmd "../configure --prefix=$HASH_DIR --with-hashpipe=$HASH_DIR"
+    safe_cmd "make"
+    safe_cmd "make install"
+    echo "...successfully installed fake_gpu plugin"
+}
+
+# BEGIN SCRIPT
+if [ "$1" == "-d" ] || [ "$1" == "--dry" ]; then
+    dryrun="this could be literally anything"
+fi
+
+# Get the directory that the script is located in
+scriptdir=$(dirname $(readlink -f $0))
+
+# Note for the curious: readlink isn't needed here, but I find it easier
+# to check full paths for validity
+HASH_DIR=$(readlink -f ../../hash)
+FAKE_GPU=$scriptdir
+# REPO_DIR=$(readlink -f $scriptdir/..)
+install_fake_gpu
