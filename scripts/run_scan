@@ -54,12 +54,13 @@ else
     echo ">   ERROR: dmjd.py not found. It should be in the same directory as this script"
 fi
 
+gpu_fifo="/tmp/gpu_fifo_${USER}_0"
+fits_fifo="/tmp/fits_fifo_${USER}_0"
+
 cmd="START"
 echo "> Starting the scan"
 echo ">   Sending the command \"$cmd\" to fake_gpu"
-#echo "$cmd" >> /tmp/tchamber/fake_gpu_control
-echo "$cmd" >> /tmp/gpu_fifo_npingel_0
+echo "$cmd" >> $gpu_fifo
 
 echo ">   Sending the command \"$cmd\" to bfFitsWriter"
-#echo "$cmd" >> /tmp/tchamber/vegas_fits_control
-echo "$cmd" >> /tmp/fits_fifo_npingel_0
+echo "$cmd" >> $fits_fifo

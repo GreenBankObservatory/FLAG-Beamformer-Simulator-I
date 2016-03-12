@@ -90,7 +90,6 @@ for arg in iter_argv:
         start_time_sec = curr_time_sec + int(next(iter_argv))
         curr_time_dmjd = secs_2_dmjd(curr_time_sec)
         start_time_dmjd = secs_2_dmjd(start_time_sec)
-        
         #print "Seconds:         Current time is %f           Scan will start at %f." % (curr_time_sec, start_time_sec)
         #print "DMJD:            Current time is %f         Scan will start at %f." % (secs_2_dmjd(curr_time_sec), start_time_dmjd)
         #print "DMJD -> Secs:    Current time is %f           Scan will start at %f." % (dmjd_2_secs(curr_time_dmjd), dmjd_2_secs(start_time_dmjd))

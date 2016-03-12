@@ -1,8 +1,7 @@
 #!/bin/bash
 
-
 hashpipe_check_status -k DATADIR -s '/tmp'
-#hashpipe_check_status -k DATADIR -s '/tmp/tchamber/sim1fits'
+#hashpipe_check_status -k DATADIR -s '/tmp/tchamber/sim1fi
 # hashpipe_check_status -k DATADIR -s '/lustre/gbtdata'
 hashpipe_check_status -k NUMPHASES -i 1
 hashpipe_check_status -k NUMPHASE -i 1

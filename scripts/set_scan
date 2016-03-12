@@ -98,12 +98,18 @@ trap control_c SIGINT
 
 # Write null files to our FIFOs so that they don't have any unexpected commands in them
 echo "> Resetting control FIFOs"
-cat /dev/null > /tmp/gpu_fifo_npingel_0
-cat /dev/null > /tmp/fits_fifo_npingel_0
+# We can hardcode the instance ID to 0 because we will only ever be running one instance of
+# hashpipe from this script
+gpu_fifo="/tmp/gpu_fifo_${USER}_0"
+fits_fifo="/tmp/fits_fifo_${USER}_0"
+rm -f $gpu_fifo
+touch $gpu_fifo
+rm -f $fits_fifo
+touch $fits_fifo
 
 # Run the fake_gpu
 echo "> Starting the fake_gpu hashpipe plugin"
-taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread &
+taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread -c 2 &
 # taskset 0x0606 hashpipe -p fake_gpu -I 0 -o BINDHOST=px1-2.gb.nrao.edu -o GPUDEV=0 -o XID=0 -c 3 fake_gpu_thread -c 2 null_output_thread &
 hash_pid=$!
 echo ">   The PID of the hashpipe instance running fake_gpu is: ${hash_pid}"
@@ -121,8 +127,6 @@ fi
 
 # Run the fits writer
 echo "> Running fits writer"
-# /home/sandboxes/tchamber/vegas_devel3/vegas_devel/src/dibas_fits_writer/bfFitsWriter &
-# /home/sandboxes/tchamber/bf_fits/beamformer_devel/src/dibas_fits_writer/bfFitsWriter &
 /users/npingel/FLAG/bf/repos/FLAG-Beamformer-Devel/src/dibas_fits_writer/bfFitsWriter &
 fits_pid=$!
 echo ">   The PID of the bfFitsWriter is: ${fits_pid}"
