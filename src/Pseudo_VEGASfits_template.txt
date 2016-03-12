@@ -1,0 +1,57 @@
+SIMPLE  =                    T / file does conform to FITS standard             
+BITPIX  =                    8 / number of bits per data pixel                  
+NAXIS   =                    0 / number of data axes                            
+EXTEND  =                    T / FITS dataset may contain extensions            
+COMMENT   FITS (Flexible Image Transport System) format is defined in
+'Astronomy
+COMMENT   and Astrophysics', volume 376, page 359; bibcode:
+2001A&A...376..359H 
+ORIGIN  = 'GBTG    '           /                                                
+INSTRUME= 'BF      '           / device or program of origin                    
+HIERARCH V0.1 = 'UNKNOWN '     / telescope control software release             
+FITSVER = '1.0     '           / FITS definition version for this device        
+DATEBLD = 'DATEBLD  goes  here' / time program was linked                       
+SIMULATE=                    0 / Is the instrument in simulate mode?            
+DATE-OBS= ''                   / Manager parameter startTime                   
+TIMESYS = 'UTC     '           / time scale specification for DATE-OBS          
+TELESCOP= 'SHAO 65meter'       / SHAO                                           
+OBJECT  = 'fakepulsar '        / Manager parameter source                       
+PROJID  = 'JUNK    '           / Manager parameter projectId                    
+OBSID   = 'unknown '           / Manager parameter scanId                       
+SCAN    =                    1 / Manager parameter scanNumber                   
+BANK    = 'J       '           / spectrometer identifier                        
+NCHAN   =                  500 / number of channels in each spectrum            
+MODE    = 'MODE1   '           / VEGAS mode 
+CHAN_BW =               300000 / Channel bandwidth in Hz
+SELFTEST=                    0 / Is VEGAS in self-test mode?
+DURATION=                 80.0 /sampling time in us                    
+COMMENT ***                                                                     
+COMMENT The following are VEGAS status shared memory keyword/value pairs        
+COMMENT ***                                                                     
+END 
+#
+###############################################################################
+#
+# Subintegration data Binary Table Extension
+#
+###############################################################################
+#
+XTENSION= BINTABLE             / ***** Subintegration data  *****
+BITPIX  =                    8 / N/A
+NAXIS   =                    * / 2-dimensional binary table                     
+NAXIS1  =                    * / width of table in bytes                        
+NAXIS2  =                    * / number of rows in table                        
+PCOUNT  =                    0 / size of special data area                      
+GCOUNT  =                    1 / one data group (required keyword)              
+TFIELDS =                    * / number of fields in each row                   
+TTYPE1  = 'DMJD    '           / label for field   1                            
+TFORM1  = '1D      '           / data format of field: 8-byte DOUBLE            
+TUNIT1  = 'd       '           / physical unit of field                         
+TTYPE2  = 'MCNT    '           / label for field   2                            
+TFORM2  = '1J      '           / data format of field: 4-byte INTEGER           
+TUNIT2  = '        '           / physical unit of field                         
+TTYPE3  = 'DATA    '           / label for field   3                            
+TFORM3  = '350E    '           / data format of field: 4-byte REAL              
+TUNIT3  = '        '           / physical unit of field                         
+EXTNAME = 'DATA    '           / name of this binary table extension            
+END
