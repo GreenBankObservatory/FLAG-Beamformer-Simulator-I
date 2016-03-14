@@ -65,14 +65,12 @@ static int init(struct hashpipe_thread_args *args)
 {
     srand(time(NULL));
 
-    //char *fifo_loc = "/tmp/tchamber/fake_gpu_control";
-    //gpu_fifo_id = open_fifo(fifo_loc);
-    char fifo_filename[256];
     char *user = getenv("USER");
-    sprintf(fifo_filename, "/tmp/gpu_fifo_%s_%d", user,args->instance_id);    
-    fprintf(stderr, "Using fake_gpu control FIFO: %s\n", fifo_filename);
+    char fifo_loc[128];
+    sprintf(fifo_loc, "/tmp/gpu_fifo_%s_%d", user,args->instance_id);    
+    fprintf(stderr, "Using fake_gpu control FIFO: %s\n", fifo_loc);
 
-    gpu_fifo_id = open_fifo(fifo_filename);
+    gpu_fifo_id = open_fifo(fifo_loc);
 
     fprintf(stderr, "FAKE GPU HAS FD %d\n", gpu_fifo_id);
     if (gpu_fifo_id < 0)
