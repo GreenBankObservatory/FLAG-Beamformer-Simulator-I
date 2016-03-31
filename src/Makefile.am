@@ -30,11 +30,15 @@ AM_CFLAGS = -ggdb -fPIC -O3 -Wall  -fno-strict-aliasing
 # Convenience variables to group source files
 gpu_output_databuf = gpu_output_databuf.h \
                      gpu_output_databuf.c\
-                     gpu_output_psr_databuf.c
+                     gpu_output_psr_databuf.c\
+                     gpu_output_paf_databuf.c\
+                     gpu_output_frb_databuf.c
 
 fake_gpu = fake_gpu_thread.c \
            fits_writer_thread.c\
            fake_gpu_psr_thread.c\
+           fake_gpu_paf_thread.c\
+           fake_gpu_frb_thread.c\
            databuf_test.c
 
 # This is the paper_gpu plugin itself

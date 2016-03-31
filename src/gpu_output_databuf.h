@@ -47,9 +47,9 @@
 // #define NUM_CHANNELS 160
 
 
-#define NUM_BLOCKS 7
+#define NUM_BLOCKS 4
 
-#define NUM_CHANNELS 50
+#define NUM_CHANNELS 160
 #define PACKET_RATE 600
 #define N           30
 #define INT_TIME    ((float)N / (float)PACKET_RATE)

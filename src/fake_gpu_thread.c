@@ -64,11 +64,15 @@ static int init(struct hashpipe_thread_args *args)
 
     char *user = getenv("USER");
     char fifo_loc[128];
+    char cmd[128];
+    sprintf(cmd, "touch /tmp/gpu_fifo_%s_%d", user, args->instance_id);
+    system(cmd);
     sprintf(fifo_loc, "/tmp/gpu_fifo_%s_%d", user, args->instance_id);
     fprintf(stderr, "Using fake_gpu control FIFO: %s\n", fifo_loc);
 
     gpu_fifo_id = open_fifo(fifo_loc);
 
+    //gpu_fifo_id = fileno(stdin);
     fprintf(stderr, "FAKE GPU HAS FD %d\n", gpu_fifo_id);
     if (gpu_fifo_id < 0)
         return -1;
@@ -313,6 +317,7 @@ static void *run(hashpipe_thread_args_t * args)
 
             db->block[block_idx].header.mcnt = mcnt;
             mcnt += N;
+            printf("MCNT is %d\n",mcnt);
 
 #ifdef DEBUG
 //             fprintf(stderr, "\tCurrent block is: %d\n", block_counter);
@@ -323,80 +328,192 @@ static void *run(hashpipe_thread_args_t * args)
                     ELAPSED_NS(blocked_stop, shm_start));
             scan_loop_ns += ELAPSED_NS(blocked_stop, shm_start);
 #endif
+            // Define a random number generator
+             #define IM1 2147483563
+            #define IM2 2147483399
+            #define AM (1.0/IM1)
+            #define IMM1 (IM1-1)
+            #define IA1 40014
+            #define IA2 40692
+            #define IQ1 53668
+            #define IQ2 52774
+            #define IR1 12211
+            #define IR2 3791
+            #define NTAB 32
+            #define NDIV (1+IMM1/NTAB)
+            #define EPS 1.2e-7
+            #define RNMX (1.0-EPS)
+
+            float ran2(long *idum)
+            {
+                    int j;
+                    long k;
+                    static long idum2=123456789;
+                    static long iy=0;
+                    static long iv[NTAB];
+                    float temp;
+
+                    if (*idum <= 0) {
+                            if (-(*idum) < 1) *idum=1;
+                            else *idum = -(*idum);
+                            idum2=(*idum);
+                            for (j=NTAB+7;j>=0;j--) {
+                                    k=(*idum)/IQ1;
+                                    *idum=IA1*(*idum-k*IQ1)-k*IR1;
+                                    if (*idum < 0) *idum += IM1;
+                                    if (j < NTAB) iv[j] = *idum;
+                            }
+                            iy=iv[0];
+                    }
+                    k=(*idum)/IQ1;
+
+                  *idum=IA1*(*idum-k*IQ1)-k*IR1;
+                    if (*idum < 0) *idum += IM1;
+                    k=idum2/IQ2;
+                    idum2=IA2*(idum2-k*IQ2)-k*IR2;
+                    if (idum2 < 0) idum2 += IM2;
+                    j=iy/NDIV;
+                    iy=iv[j]-idum2;
+                    iv[j] = *idum;
+                    if (iy < 1) iy += IMM1;
+                    if ((temp=AM*iy) > RNMX) return RNMX;
+                    else return temp;
+            }
+            #undef IM1
+            #undef IM2
+            #undef AM
+            #undef IMM1
+            #undef IA1
+            #undef IA2
+            #undef IQ1
+            #undef IQ2
+            #undef IR1
+            #undef IR2
+            #undef NTAB
+            #undef NDIV
+            #undef EPS
+            #undef RNMX
+            float gasdev(long *idum)
+            {
+                    static int iset=0;
+                    static float gset;
+                    float fac,rsq,v1,v2;
+
+                    if  (iset == 0) {
+                            do {
+                                    v1=2.0*ran2(idum)-1.0;
+                                    v2=2.0*ran2(idum)-1.0;
+                                    rsq=v1*v1+v2*v2;
+                            } while (rsq >= 1.0 || rsq == 0.0);
+                            fac=sqrt(-2.0*log(rsq)/rsq);
+                            gset=v1*fac;
+                            iset=1;
+                            return v2*fac;
+                            } else {
+                            iset=0;
+                            return gset;
+                    }
+            } 
+              
+            
+             void covarianceGen(float covarianceMatrix[NUM_ANTENNAS][NUM_ANTENNAS])
+            {
+                float ranArr_col[30][40] = {{0.0}};
+                float ranArr_row[40][30] = {{0.0}};
+                long seed = 0;
+                seed = time(0);
+                int i;
+                int j;
+                for (i=0; i < 40; i++)
+                {
+                    for (j=0; j< 30;j++)
+                    {
+                        float randVal = gasdev(&seed);
+                        ranArr_col[j][i] = randVal;
+                    }
+                }
+
+                for (i=0; i < 40; i++)
+                {
+                    for (j=0; j < 30; j++)
+                    {
+                        ranArr_row[i][j] = ranArr_col[j][i];
+                    }
+                }
+                int l;
+                int k;
+                float dotVal;
+                for (i=0; i < NUM_ANTENNAS; i++)
+                {
+                    for (j=0; j < NUM_ANTENNAS;j++)
+                    {
+                        float rowVec[N];
+                        float colVec[N];
+                        for (l=0; l < N; l++)
+                        {
+                            rowVec[l] = ranArr_row[j][l];
+                        }
+                        for (k=0;k < N;k++)
+                        {
+                            colVec[k] = ranArr_col[k][i];
+                        }
+                        dotVal=0;
+                        int z;
+                        for (z=0;z < N; z++)
+                        {
+                            dotVal+=colVec[z]*rowVec[z];
+                        }
+                        covarianceMatrix[i][j] = dotVal*(float)1/N;
+                    }
+                }
+            }
 
             // Zero out our shm block's data
             memset(db->block[block_idx].data, 0, NUM_CHANNELS * GPU_BIN_SIZE * 2);
-
-            #define DIM 20
-
-            // I am so sorry in advance; I really just don't have time to remove
-            //   the horrendous code duplication here
-            // This is the element index. It tracks the index of the current
-            //   complex pair
-            int elem_i = 0;
-            // This is the 'channel' loop
-            int i;
-            for (i = 0; i < NUM_CHANNELS; i++)
+            //Implement ramp which lists correlation pair corresponding to position in output array 
+            int channel;
+            for (channel = 0; channel < NUM_CHANNELS; channel++)
             {
-                // This is the 'column' loop
-                int j;
-                for (j = 0; j < DIM; j++)
+                float covarianceMatrix[NUM_ANTENNAS][NUM_ANTENNAS]={{0}};
+                covarianceGen(covarianceMatrix);
+                int elem_i=0;
+                int row;
+                for (row = 0; row < NUM_ANTENNAS; row+=2)
                 {
-                    // This is the 'row' loop
-                    // Together the 'column' and 'row' loops track our position
-                    //   (as an ordered pair) in the matrix
-                    int k;
-                    for (k = 0; k < j+1; k++)
+                    int col;
+                    for (col = 0; col < row+2; col+=2)
                     {
+                        int real_coord;
+                        int imag_coord;
                         int l;
-                        for (l = 0; l < 4; l++)
+                        for (l=0; l < 4; l++)
                         {
-                            // We derive a 'real index' from the element counter.
-                            // This is the index of the real half of the complex pair
-                            int real_i = elem_i * 2;
-                            // This is the index of the imaginary half of the complex pair
-                            int imag_i = real_i + 1;
-
-                            // We will derive the 'column' portion of the coordinate
-                            //   and write it to the real half of the pair
-                            // We start with an offset in order to create a smooth
-                            //   ramp between the different blocks
-                            int real_coord = DIM * 2 * block_idx;
-                            // We will derive the 'row' portion of the coordinate
-                            //   and write it to the imaginary half of the pair
-                            // This allows us to write a ramp of ordered pairs to FITS
-                            int imag_coord = real_coord;
-                            // Account for the four diffent elements within
-                            //   each block
-                            if (l == 0)
+                            real_coord = row;
+                            imag_coord = col;
+                            int real_i = elem_i*2;
+                            int imag_i = real_i+1;
+                            if (l==1)
                             {
-                                real_coord += 2 * j;
-                                imag_coord += 2 * k;
+                                imag_coord++;
                             }
-                            else if (l == 1)
+                            else if (l==2)
                             {
-                                real_coord += 2 * j;
-                                imag_coord += 2 * k + 1;
+                                real_coord++;
                             }
-                            else if (l == 2)
+                            else if (l==3)
                             {
-                                real_coord += 2 * j + 1;
-                                imag_coord += 2 * k;
+                                real_coord++;
+                                imag_coord++;
                             }
-                            else if (l == 3)
-                            {
-                                real_coord += 2 * j + 1;
-                                imag_coord += 2 * k + 1;
-                            }
-                            
-                            // Now we simply write the data itself to the proper block
-                            db->block[block_idx].data[real_i] = real_coord;
-                            db->block[block_idx].data[imag_i] = imag_coord;
+                             //Write correlation product
+                              db->block[block_idx].data[(channel*2*GPU_BIN_SIZE)+real_i] = covarianceMatrix[real_coord][imag_coord];
+                            db->block[block_idx].data[(channel*2*GPU_BIN_SIZE)+imag_i] = 0.0;
                             elem_i++;
                         }
                     }
                 }
             }
+                        
 
 #ifdef DEBUG
             clock_gettime(CLOCK_MONOTONIC, &shm_stop);

@@ -37,11 +37,10 @@
 #include <fcntl.h>
 
 #include "hashpipe.h"
-#include "gpu_output_psr_databuf.h"
+#include "gpu_output_frb_databuf.h"
 #include "fitsio.h"
 #include "fifo.h"
 #include "time_stuff.h"
-
 //#include "matrix_map.h"
 
 #define SCAN_STATUS_LENGTH 10
@@ -53,10 +52,7 @@
 
 // #define DEBUG
 
-int i;
-//double timeval_2_mjd(timeval *tv);
-//time_t dmjd_2_secs(double dmjd);
-//double get_curr_time_dmjd();
+
 
 int gpu_fifo_id;
 
@@ -66,22 +62,20 @@ static int init(struct hashpipe_thread_args *args)
 {
     srand(time(NULL));
 
-    //char *fifo_loc = "/tmp/tchamber/fake_gpu_control";
-    //gpu_fifo_id = open_fifo(fifo_loc);
-    char fifo_filename[256];
     char *user = getenv("USER");
+    char fifo_loc[128];
     char cmd[128];
-    sprintf(cmd,"touch /tmp/gpu_fifo_%s_%d",user, args->instance_id);
+    sprintf(cmd, "touch /tmp/gpu_fifo_%s_%d", user, args->instance_id);
     system(cmd);
-    sprintf(fifo_filename, "/tmp/gpu_fifo_%s_%d",user, args->instance_id);    
-    fprintf(stderr, "Using fake_gpu control FIFO: %s\n", fifo_filename);
+    sprintf(fifo_loc, "/tmp/gpu_fifo_%s_%d", user, args->instance_id);
+    fprintf(stderr, "Using fake_gpu control FIFO: %s\n", fifo_loc);
 
-    gpu_fifo_id = open_fifo(fifo_filename);
+    gpu_fifo_id = open_fifo(fifo_loc);
 
-    //gpu_fifo_id=fileno(stdin);
+    //gpu_fifo_id = fileno(stdin);
     fprintf(stderr, "FAKE GPU HAS FD %d\n", gpu_fifo_id);
-    //if (gpu_fifo_id < 0)
-      //  return -1;
+    if (gpu_fifo_id < 0)
+        return -1;
 
     fprintf(stderr, "Data Size Stats:\n");
     fprintf(stderr, "\tNumber of channels:                           %10d channels\n", NUM_CHANNELS);
@@ -104,8 +98,6 @@ static int init(struct hashpipe_thread_args *args)
     hputs(st.buf, "SCANSTAT", "off");
     // Initialize start time to impossible value
     hputr8(st.buf, "STRTDMJD", -1.0);
-    //Set NCHAN to 5
-     hputr8(st.buf, "NCHAN", 5);
     hashpipe_status_unlock_safe(&st);
 
     // get_mapping_C(GPU_BIN_SIZE, old_to_new_map);
@@ -213,7 +205,7 @@ static void *run(hashpipe_thread_args_t * args)
             fprintf(stderr, "Number of blocks to write: %d\n", num_blocks_to_write);
 
             fprintf(stderr, "The scan will start at DMJD: %f\n", start_time_dmjd);
-           // fprintf(stderr, "The scan will start in %lu seconds\n", dmjd_2_secs(start_time_dmjd) - dmjd_2_secs(get_curr_time_dmjd()));
+            fprintf(stderr, "The scan will start in %lu seconds\n", dmjd_2_secs(start_time_dmjd) - dmjd_2_secs(get_curr_time_dmjd()));
             fprintf(stderr, "The scan will last %d seconds\n", requested_scan_length);
 
             // Check to see if the scan length is correct...
@@ -276,7 +268,6 @@ static void *run(hashpipe_thread_args_t * args)
         if (strcmp(scan_status, "committed") == 0)
         {
             curr_time_dmjd = get_curr_time_dmjd();
-            //start_time_dmjd = 57453.8;
             if (curr_time_dmjd >= start_time_dmjd && start_time_dmjd != -1)
             {
                 fprintf(stderr, "Starting scan!\n");
@@ -323,9 +314,10 @@ static void *run(hashpipe_thread_args_t * args)
             // Set status to sending
             hputs(st.buf, status_key, "writing");
             hashpipe_status_unlock_safe(&st);
+
             db->block[block_idx].header.mcnt = mcnt;
-            printf("MCNT from thread: %d\n",mcnt);
             mcnt += N;
+            printf("MCNT is %d\n",mcnt);
 
 #ifdef DEBUG
 //             fprintf(stderr, "\tCurrent block is: %d\n", block_counter);
@@ -336,18 +328,193 @@ static void *run(hashpipe_thread_args_t * args)
                     ELAPSED_NS(blocked_stop, shm_start));
             scan_loop_ns += ELAPSED_NS(blocked_stop, shm_start);
 #endif
+            // Define a random number generator
+             #define IM1 2147483563
+            #define IM2 2147483399
+            #define AM (1.0/IM1)
+            #define IMM1 (IM1-1)
+            #define IA1 40014
+            #define IA2 40692
+            #define IQ1 53668
+            #define IQ2 52774
+            #define IR1 12211
+            #define IR2 3791
+            #define NTAB 32
+            #define NDIV (1+IMM1/NTAB)
+            #define EPS 1.2e-7
+            #define RNMX (1.0-EPS)
+
+            float ran2(long *idum)
+            {
+                    int j;
+                    long k;
+                    static long idum2=123456789;
+                    static long iy=0;
+                    static long iv[NTAB];
+                    float temp;
+
+                    if (*idum <= 0) {
+                            if (-(*idum) < 1) *idum=1;
+                            else *idum = -(*idum);
+                            idum2=(*idum);
+                            for (j=NTAB+7;j>=0;j--) {
+                                    k=(*idum)/IQ1;
+                                    *idum=IA1*(*idum-k*IQ1)-k*IR1;
+                                    if (*idum < 0) *idum += IM1;
+                                    if (j < NTAB) iv[j] = *idum;
+                            }
+                            iy=iv[0];
+                    }
+                    k=(*idum)/IQ1;
+
+                  *idum=IA1*(*idum-k*IQ1)-k*IR1;
+                    if (*idum < 0) *idum += IM1;
+                    k=idum2/IQ2;
+                    idum2=IA2*(idum2-k*IQ2)-k*IR2;
+                    if (idum2 < 0) idum2 += IM2;
+                    j=iy/NDIV;
+                    iy=iv[j]-idum2;
+                    iv[j] = *idum;
+                    if (iy < 1) iy += IMM1;
+                    if ((temp=AM*iy) > RNMX) return RNMX;
+                    else return temp;
+            }
+            #undef IM1
+            #undef IM2
+            #undef AM
+            #undef IMM1
+            #undef IA1
+            #undef IA2
+            #undef IQ1
+            #undef IQ2
+            #undef IR1
+            #undef IR2
+            #undef NTAB
+            #undef NDIV
+            #undef EPS
+            #undef RNMX
+            float gasdev(long *idum)
+            {
+                    static int iset=0;
+                    static float gset;
+                    float fac,rsq,v1,v2;
+
+                    if  (iset == 0) {
+                            do {
+                                    v1=2.0*ran2(idum)-1.0;
+                                    v2=2.0*ran2(idum)-1.0;
+                                    rsq=v1*v1+v2*v2;
+                            } while (rsq >= 1.0 || rsq == 0.0);
+                            fac=sqrt(-2.0*log(rsq)/rsq);
+                            gset=v1*fac;
+                            iset=1;
+                            return v2*fac;
+                            } else {
+                            iset=0;
+                            return gset;
+                    }
+            } 
+              
+            
+             void covarianceGen(float covarianceMatrix[NUM_ANTENNAS][NUM_ANTENNAS])
+            {
+                float ranArr_col[30][40] = {{0.0}};
+                float ranArr_row[40][30] = {{0.0}};
+                long seed = 0;
+                seed = time(0);
+                int i;
+                int j;
+                for (i=0; i < 40; i++)
+                {
+                    for (j=0; j< 30;j++)
+                    {
+                        float randVal = gasdev(&seed);
+                        ranArr_col[j][i] = randVal;
+                    }
+                }
+
+                for (i=0; i < 40; i++)
+                {
+                    for (j=0; j < 30; j++)
+                    {
+                        ranArr_row[i][j] = ranArr_col[j][i];
+                    }
+                }
+                int l;
+                int k;
+                float dotVal;
+                for (i=0; i < NUM_ANTENNAS; i++)
+                {
+                    for (j=0; j < NUM_ANTENNAS;j++)
+                    {
+                        float rowVec[N];
+                        float colVec[N];
+                        for (l=0; l < N; l++)
+                        {
+                            rowVec[l] = ranArr_row[j][l];
+                        }
+                        for (k=0;k < N;k++)
+                        {
+                            colVec[k] = ranArr_col[k][i];
+                        }
+                        dotVal=0;
+                        int z;
+                        for (z=0;z < N; z++)
+                        {
+                            dotVal+=colVec[z]*rowVec[z];
+                        }
+                        covarianceMatrix[i][j] = dotVal*(float)1/N;
+                    }
+                }
+            }
 
             // Zero out our shm block's data
-            // memset(db->block[block_idx].data, 0, TOTAL_DATA_SIZE*NUMBLOCKS);
+            memset(db->block[block_idx].data, 0, NUM_CHANNELS * GPU_BIN_SIZE * 2);
+            //Implement ramp which lists correlation pair corresponding to position in output array 
+            int channel;
+            for (channel = 0; channel < NUM_CHANNELS; channel++)
+            {
+                float covarianceMatrix[NUM_ANTENNAS][NUM_ANTENNAS]={{0}};
+                covarianceGen(covarianceMatrix);
+                int elem_i=0;
+                int row;
+                for (row = 0; row < NUM_ANTENNAS; row+=2)
+                {
+                    int col;
+                    for (col = 0; col < row+2; col+=2)
+                    {
+                        int real_coord;
+                        int imag_coord;
+                        int l;
+                        for (l=0; l < 4; l++)
+                        {
+                            real_coord = row;
+                            imag_coord = col;
+                            int real_i = elem_i*2;
+                            int imag_i = real_i+1;
+                            if (l==1)
+                            {
+                                imag_coord++;
+                            }
+                            else if (l==2)
+                            {
+                                real_coord++;
+                            }
+                            else if (l==3)
+                            {
+                                real_coord++;
+                                imag_coord++;
+                            }
+                             //Write correlation product
+                              db->block[block_idx].data[(channel*2*GPU_BIN_SIZE)+real_i] = covarianceMatrix[real_coord][imag_coord];
+                            db->block[block_idx].data[(channel*2*GPU_BIN_SIZE)+imag_i] = 0.0;
+                            elem_i++;
+                        }
+                    }
+                }
+            }
+                        
 
-            #define DIM 7
-
-            // Simple ramp corresponding to pulsar data
-            //
-           for (i=0;i<TOTAL_DATA_SIZE;i++){
-                 
-                   db->block[block_idx].data[i] = (float)i ;   
-                  }  
 #ifdef DEBUG
             clock_gettime(CLOCK_MONOTONIC, &shm_stop);
 
@@ -453,16 +620,17 @@ static void *run(hashpipe_thread_args_t * args)
 }
 
 
-static hashpipe_thread_desc_t fake_gpu_psr_thread = {
-    name: "fake_gpu_psr_thread",
+
+static hashpipe_thread_desc_t fake_gpu_frb_thread = {
+    name: "fake_gpu_frb_thread",
     skey: "FGPUSTAT",
     init: init,
     run:  run,
     ibuf_desc: {NULL},
-    obuf_desc: {gpu_output_psr_databuf_create}
+    obuf_desc: {gpu_output_frb_databuf_create}
 };
 
 static __attribute__((constructor)) void ctor()
 {
-  register_hashpipe_thread(&fake_gpu_psr_thread);
+  register_hashpipe_thread(&fake_gpu_frb_thread);
 }

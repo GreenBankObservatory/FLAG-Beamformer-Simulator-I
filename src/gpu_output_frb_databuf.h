@@ -47,17 +47,15 @@
 // #define NUM_CHANNELS 160
 
 
-#define NUM_BLOCKS 7
+#define NUM_BLOCKS 4
 
-#define NUM_CHANNELS 50
+#define NUM_CHANNELS 5
 #define PACKET_RATE 600
 #define N           30
 #define INT_TIME    ((float)N / (float)PACKET_RATE)
 #define INT_TIME_NS (INT_TIME * 1000000000)
 
-//#define TOTAL_DATA_SIZE (GPU_BIN_SIZE * NUM_CHANNELS * 2) //907711.000000 //862736.000000
-
-#define TOTAL_DATA_SIZE 350*3
+#define TOTAL_DATA_SIZE (GPU_BIN_SIZE * NUM_CHANNELS * 2) //907711.000000 //862736.000000
 
 #define ELAPSED_NS(start,stop) \
   (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
@@ -87,7 +85,7 @@ typedef struct timespec timespec;
  * OUTPUT BUFFER FUNCTIONS
  */
 
-hashpipe_databuf_t *gpu_output_psr_databuf_create(int instance_id, int databuf_id);
+hashpipe_databuf_t *gpu_output_frb_databuf_create(int instance_id, int databuf_id);
 
 static inline void gpu_output_databuf_clear(gpu_output_databuf_t *d)
 {

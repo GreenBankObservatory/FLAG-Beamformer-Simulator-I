@@ -43,7 +43,7 @@ int open_fifo(char *fifo_loc)
 // 		exit(1);
 	}
 
-    fprintf(stderr, "FIFO created with fd: %d\n", fifo_fd);
+        fprintf(stderr, "FIFO created with fd: %d\n", fifo_fd);
 	return fifo_fd;
 }
 
