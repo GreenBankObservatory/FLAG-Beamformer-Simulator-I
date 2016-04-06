@@ -96,8 +96,10 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
 fake_gpu_la_DEPENDENCIES =
 am__objects_1 = fake_gpu_thread.lo fits_writer_thread.lo \
-	fake_gpu_psr_thread.lo databuf_test.lo
-am__objects_2 = gpu_output_databuf.lo gpu_output_psr_databuf.lo
+	fake_gpu_psr_thread.lo fake_gpu_paf_thread.lo \
+	fake_gpu_frb_thread.lo databuf_test.lo
+am__objects_2 = gpu_output_databuf.lo gpu_output_psr_databuf.lo \
+	gpu_output_paf_databuf.lo gpu_output_frb_databuf.lo
 am_fake_gpu_la_OBJECTS = $(am__objects_1) $(am__objects_2) fifo.lo \
 	time_stuff.lo
 fake_gpu_la_OBJECTS = $(am_fake_gpu_la_OBJECTS)
@@ -262,11 +264,15 @@ AM_CFLAGS = -ggdb -fPIC -O3 -Wall  -fno-strict-aliasing
 # Convenience variables to group source files
 gpu_output_databuf = gpu_output_databuf.h \
                      gpu_output_databuf.c\
-                     gpu_output_psr_databuf.c
+                     gpu_output_psr_databuf.c\
+                     gpu_output_paf_databuf.c\
+                     gpu_output_frb_databuf.c
 
 fake_gpu = fake_gpu_thread.c \
            fits_writer_thread.c\
            fake_gpu_psr_thread.c\
+           fake_gpu_paf_thread.c\
+           fake_gpu_frb_thread.c\
            databuf_test.c
 
 
@@ -396,11 +402,15 @@ distclean-compile:
 	-rm -f *.tab.c
 
 include ./$(DEPDIR)/databuf_test.Plo
+include ./$(DEPDIR)/fake_gpu_frb_thread.Plo
+include ./$(DEPDIR)/fake_gpu_paf_thread.Plo
 include ./$(DEPDIR)/fake_gpu_psr_thread.Plo
 include ./$(DEPDIR)/fake_gpu_thread.Plo
 include ./$(DEPDIR)/fifo.Plo
 include ./$(DEPDIR)/fits_writer_thread.Plo
 include ./$(DEPDIR)/gpu_output_databuf.Plo
+include ./$(DEPDIR)/gpu_output_frb_databuf.Plo
+include ./$(DEPDIR)/gpu_output_paf_databuf.Plo
 include ./$(DEPDIR)/gpu_output_psr_databuf.Plo
 include ./$(DEPDIR)/time_stuff.Plo
 

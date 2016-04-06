@@ -57,7 +57,7 @@
 
 //#define TOTAL_DATA_SIZE (GPU_BIN_SIZE * NUM_CHANNELS * 2) //907711.000000 //862736.000000
 
-#define TOTAL_DATA_SIZE 350*3
+#define TOTAL_DATA_SIZE 1050
 
 #define ELAPSED_NS(start,stop) \
   (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
